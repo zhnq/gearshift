@@ -4,7 +4,7 @@
 
 ## 直接运行（发布版）
 
-下载 `dist/GearShift-0.1.0-win-x64.zip`，解压后双击 **`GearShift.exe`** 即可。**无需安装 .NET 或 Windows App SDK 运行时**（已自包含打包）。需要 Windows 10 1809+ / Windows 11。
+从 [**Releases**](https://github.com/zhnq/gearshift/releases/latest) 下载 `GearShift-0.1.0-win-x64.zip`，解压后双击 **`GearShift.exe`** 即可。**无需安装 .NET 或 Windows App SDK 运行时**（已自包含打包）。需要 Windows 10 1809+ / Windows 11（x64）。
 
 ## 核心理念：声明式目标状态
 
