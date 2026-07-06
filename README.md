@@ -4,7 +4,16 @@
 
 ## 直接运行（发布版）
 
-从 [**Releases**](https://github.com/zhnq/gearshift/releases/latest) 下载 `GearShift-0.1.0-win-x64.zip`，解压后双击 **`GearShift.exe`** 即可。**无需安装 .NET 或 Windows App SDK 运行时**（已自包含打包）。需要 Windows 10 1809+ / Windows 11（x64）。
+从 [**Releases**](https://github.com/zhnq/gearshift/releases/latest) 下载 `GearShift-0.1.0-win-x64.zip`，解压后双击 **`GearShift.exe`**。
+
+首次运行前需各装一次以下两个运行时（一次安装，后续版本通用）：
+- [.NET 10 桌面运行时 (x64)](https://dotnet.microsoft.com/download/dotnet/10.0) — 页面选 **.NET Desktop Runtime**
+- [Windows App SDK 运行时 (x64)](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads) — 下载 **2.2 的 Runtime（Redistributable）**
+
+要求 Windows 10 1809+ / Windows 11（x64）。
+
+> 想要免安装、双击即跑的版本？用自包含方式自行发布：
+> `dotnet publish src/GearShift.App -c Release -r win-x64 -p:Platform=x64 -p:WindowsAppSDKSelfContained=true --self-contained true`（体积约 85MB）。
 
 ## 核心理念：声明式目标状态
 
