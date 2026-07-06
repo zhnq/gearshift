@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="GearShift.App.Pages.EditScenePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:GearShift.App.Pages">
+
+    <ScrollViewer>
+        <Grid Padding="36,28" MaxWidth="1120" HorizontalAlignment="Stretch">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <Grid Grid.Row="0" Margin="0,0,0,20">
+                <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+                    <Button Click="OnBack" Width="36" Height="36" Padding="0"
+                            VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE72B;" FontSize="14" />
+                    </Button>
+                    <Border Width="40" Height="40" CornerRadius="9"
+                            Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                        <TextBox x:Name="IconBox" FontSize="20" MaxLength="4"
+                                 TextAlignment="Center" Padding="0"
+                                 BorderThickness="0" Background="Transparent"
+                                 VerticalAlignment="Center"
+                                 ToolTipService.ToolTip="输入一个 emoji 作为图标" />
+                    </Border>
+                    <StackPanel Spacing="1" VerticalAlignment="Center">
+                        <TextBox x:Name="NameBox" FontSize="20" FontWeight="SemiBold"
+                                 MinWidth="220" BorderThickness="0"
+                                 Background="Transparent" Padding="2,0" />
+                        <TextBlock Text="编辑场景 · 进入时应用以下动作" FontSize="12"
+                                   Margin="4,0,0,0"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8"
+                            HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button Content="删除" Click="OnDelete" />
+                    <Button Content="完成" Style="{StaticResource AccentButtonStyle}" Click="OnDone" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Columns -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="360" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Left: programs -->
+                <Border Grid.Column="0" Margin="0,0,20,0" CornerRadius="8" Padding="20"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                        VerticalAlignment="Top">
+                    <StackPanel Spacing="18">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="程序" FontWeight="SemiBold" />
+                            <TextBlock Text="进入场景时启动或关闭这些程序" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="进入时启动" FontWeight="SemiBold" FontSize="13" />
+                            <ItemsControl x:Name="LaunchList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:AppEntry">
+                                        <Grid Padding="10,8" Margin="0,0,0,6" CornerRadius="6"
+                                              Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Spacing="1">
+                                                <TextBlock Text="{x:Bind DisplayName}" />
+                                                <TextBlock Text="{x:Bind Match}" FontSize="12"
+                                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                                    FontSize="12" Background="Transparent" BorderThickness="0"
+                                                    Click="OnRemoveApp" Tag="{x:Bind}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Content="＋ 添加要启动的程序" HorizontalAlignment="Stretch" Click="OnAddLaunch" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="进入时关闭" FontWeight="SemiBold" FontSize="13" />
+                            <ItemsControl x:Name="CloseList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:AppEntry">
+                                        <Grid Padding="10,8" Margin="0,0,0,6" CornerRadius="6"
+                                              Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Spacing="1">
+                                                <TextBlock Text="{x:Bind DisplayName}" />
+                                                <TextBlock Text="{x:Bind Match}" FontSize="12"
+                                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                                    FontSize="12" Background="Transparent" BorderThickness="0"
+                                                    Click="OnRemoveApp" Tag="{x:Bind}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Content="＋ 添加要关闭的程序" HorizontalAlignment="Stretch" Click="OnAddClose" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Right: global actions -->
+                <Border Grid.Column="1" CornerRadius="8" Padding="20"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
+                        VerticalAlignment="Top">
+                    <StackPanel Spacing="16">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="全局动作" FontWeight="SemiBold" />
+                            <TextBlock Text="系统级设置随场景切换" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+
+                        <Grid>
+                            <TextBlock Text="系统代理" VerticalAlignment="Center" />
+                            <ComboBox x:Name="ProxyCombo" HorizontalAlignment="Right" MinWidth="130">
+                                <ComboBoxItem Content="不改变" />
+                                <ComboBoxItem Content="开启" />
+                                <ComboBoxItem Content="关闭" />
+                            </ComboBox>
+                        </Grid>
+
+                        <Grid>
+                            <TextBlock Text="电源计划" VerticalAlignment="Center" />
+                            <ComboBox x:Name="PowerCombo" HorizontalAlignment="Right" MinWidth="130">
+                                <ComboBoxItem Content="不改变" />
+                                <ComboBoxItem Content="高性能" />
+                                <ComboBoxItem Content="平衡" />
+                                <ComboBoxItem Content="节能" />
+                            </ComboBox>
+                        </Grid>
+
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="动作插件" FontWeight="SemiBold" FontSize="13" />
+                            <ItemsControl x:Name="ActionList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="local:ActionEntry">
+                                        <Grid Padding="10,8" Margin="0,0,0,6" CornerRadius="6"
+                                              Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{x:Bind Name}" VerticalAlignment="Center" />
+                                            <Button Grid.Column="1" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                                    FontSize="12" Background="Transparent" BorderThickness="0"
+                                                    Click="OnRemoveAction" Tag="{x:Bind}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Content="＋ 添加动作" HorizontalAlignment="Stretch" Click="OnAddAction" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </ScrollViewer>
+</Page>

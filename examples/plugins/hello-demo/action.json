@@ -1,0 +1,7 @@
+{
+  "id": "hello-demo",
+  "name": "示例问候",
+  "description": "导入演示用：打印一条带参数的问候",
+  "params": [{ "key": "who", "type": "string", "default": "世界" }],
+  "apply": { "run": "powershell", "script": "apply.ps1", "args": "-Who {who}" }
+}

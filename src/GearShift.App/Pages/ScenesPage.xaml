@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="GearShift.App.Pages.ScenesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:GearShift.App.Pages">
+
+    <Grid Padding="36,28,36,28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,20">
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="场景" Style="{StaticResource TitleTextBlockStyle}" />
+                <TextBlock Text="切换场景，一键进入游戏或办公状态"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="10"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Click="OnSnapshotScene" ToolTipService.ToolTip="抓取当前打开的程序，创建为新场景">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE722;" FontSize="14" />
+                        <TextBlock Text="快照新建" />
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource AccentButtonStyle}" Click="OnNewScene">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE710;" FontSize="14" />
+                        <TextBlock Text="新建场景" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <!-- Scene cards -->
+        <GridView x:Name="ScenesGrid" Grid.Row="1" SelectionMode="None" Padding="0"
+                  ScrollViewer.HorizontalScrollMode="Disabled">
+            <GridView.ItemContainerStyle>
+                <Style TargetType="GridViewItem">
+                    <Setter Property="Margin" Value="0,0,16,16" />
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="MinWidth" Value="0" />
+                    <Setter Property="MinHeight" Value="0" />
+                </Style>
+            </GridView.ItemContainerStyle>
+
+            <GridView.ItemTemplate>
+                <DataTemplate x:DataType="local:SceneItem">
+                    <Grid Width="280" Height="164">
+                        <Grid.ContextFlyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="编辑" Click="OnEditScene" Tag="{x:Bind Scene}" />
+                                <MenuFlyoutItem Text="删除" Click="OnDeleteScene" Tag="{x:Bind Scene}" />
+                            </MenuFlyout>
+                        </Grid.ContextFlyout>
+                        <!-- base card -->
+                        <Border CornerRadius="8"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1" />
+                        <!-- accent ring for the active scene -->
+                        <Border CornerRadius="8" BorderThickness="1.5"
+                                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}"
+                                Visibility="{x:Bind ActiveVisibility}" />
+
+                        <Grid Padding="18">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- top: icon tile + active badge -->
+                            <Grid Grid.Row="0">
+                                <Border Width="44" Height="44" CornerRadius="10" HorizontalAlignment="Left"
+                                        Background="{ThemeResource ControlFillColorSecondaryBrush}">
+                                    <TextBlock Text="{x:Bind Icon}" FontSize="22"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <Border HorizontalAlignment="Right" VerticalAlignment="Top"
+                                        CornerRadius="10" Padding="9,3"
+                                        Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                        Visibility="{x:Bind ActiveVisibility}">
+                                    <TextBlock Text="当前" FontSize="12"
+                                               Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                                </Border>
+                            </Grid>
+
+                            <!-- name + summary -->
+                            <StackPanel Grid.Row="1" VerticalAlignment="Bottom" Spacing="2">
+                                <TextBlock Text="{x:Bind Name}" FontSize="18"
+                                           Style="{StaticResource BaseTextBlockStyle}" />
+                                <TextBlock Text="{x:Bind Summary}" FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+
+                            <!-- action -->
+                            <Button Grid.Row="2" Margin="0,12,0,0" HorizontalAlignment="Stretch"
+                                    Content="切换到此场景" Click="OnSwitchClick" Tag="{x:Bind Scene}"
+                                    Visibility="{x:Bind SwitchVisibility}" />
+                            <Border Grid.Row="2" Margin="0,12,0,0" Height="32" CornerRadius="5"
+                                    Background="{ThemeResource ControlFillColorSecondaryBrush}"
+                                    Visibility="{x:Bind ActiveVisibility}">
+                                <TextBlock Text="✓ 已启用" FontSize="14" FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+        </GridView>
+    </Grid>
+</Page>

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GearShift.App/GearShift.App.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/GearShift.Core/GearShift.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GearShift.Core.Tests/GearShift.Core.Tests.csproj" />
+  </Folder>
+</Solution>

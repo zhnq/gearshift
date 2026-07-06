@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="GearShift.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    xmlns:tb="using:H.NotifyIcon">
+
+    <muxc:NavigationView
+        x:Name="Nav"
+        IsBackButtonVisible="Collapsed"
+        IsSettingsVisible="True"
+        PaneDisplayMode="Left"
+        OpenPaneLength="212"
+        Loaded="OnLoaded"
+        SelectionChanged="OnNavSelectionChanged">
+        <muxc:NavigationView.MenuItems>
+            <muxc:NavigationViewItem Content="场景" Tag="scenes" IsSelected="True">
+                <muxc:NavigationViewItem.Icon>
+                    <muxc:SymbolIcon Symbol="ViewAll" />
+                </muxc:NavigationViewItem.Icon>
+            </muxc:NavigationViewItem>
+            <muxc:NavigationViewItem Content="动作库" Tag="actions">
+                <muxc:NavigationViewItem.Icon>
+                    <muxc:SymbolIcon Symbol="AllApps" />
+                </muxc:NavigationViewItem.Icon>
+            </muxc:NavigationViewItem>
+        </muxc:NavigationView.MenuItems>
+
+        <Grid>
+            <Border Background="{ThemeResource LayerFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1,1,0,0"
+                    CornerRadius="8,0,0,0">
+                <muxc:Frame x:Name="ContentFrame" />
+            </Border>
+
+            <tb:TaskbarIcon x:Name="Tray" ToolTipText="GearShift">
+                <tb:TaskbarIcon.IconSource>
+                    <tb:GeneratedIconSource Text="G" Foreground="White" Background="#005FB8" />
+                </tb:TaskbarIcon.IconSource>
+                <tb:TaskbarIcon.ContextFlyout>
+                    <MenuFlyout x:Name="TrayMenu" />
+                </tb:TaskbarIcon.ContextFlyout>
+            </tb:TaskbarIcon>
+        </Grid>
+    </muxc:NavigationView>
+</Window>
