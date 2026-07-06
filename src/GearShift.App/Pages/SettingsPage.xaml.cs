@@ -40,6 +40,11 @@ public sealed partial class SettingsPage : Page
         var idx = _sceneIds.IndexOf(s.DefaultSceneId);
         DefaultSceneCombo.SelectedIndex = idx < 0 ? 0 : idx;
 
+        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        VersionText.Text = version is null
+            ? "声明式场景切换工具"
+            : $"版本 {version.Major}.{version.Minor}.{version.Build} · 声明式场景切换工具";
+
         if (ElevationHelper.IsElevated())
         {
             ElevStatus.Text = "已以管理员身份运行";

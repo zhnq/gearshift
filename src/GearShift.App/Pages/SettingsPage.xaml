@@ -158,7 +158,7 @@
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
                     <StackPanel Spacing="1">
                         <TextBlock Text="GearShift" />
-                        <TextBlock Text="版本 0.1.0 · 声明式场景切换工具" FontSize="12"
+                        <TextBlock x:Name="VersionText" FontSize="12"
                                    Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                     </StackPanel>
                 </Border>
