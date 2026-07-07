@@ -66,6 +66,16 @@ public sealed class SceneSwitcher
                         _ => Fail(step, $"无法关闭 {step.Target}"),
                     };
 
+                case StepKind.SuspendProcess:
+                    return _processes.Suspend(step.App!.Match)
+                        ? Ok(step, $"已冻结 {step.Target}")
+                        : new StepOutcome(step, StepStatus.Skipped, $"{step.Target} 已不在运行");
+
+                case StepKind.ResumeProcess:
+                    return _processes.Resume(step.App!.Match)
+                        ? Ok(step, $"已解冻 {step.Target}")
+                        : new StepOutcome(step, StepStatus.Skipped, $"{step.Target} 已不在运行");
+
                 case StepKind.SetProxy:
                     _proxy.SetEnabled(step.ProxyOn);
                     return Ok(step, step.ProxyOn ? "系统代理已开启" : "系统代理已关闭");

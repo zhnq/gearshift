@@ -1,10 +1,10 @@
 # GearShift
 
-**v0.1.1** · 一个 Windows 桌面「场景切换」工具：右键任务栏托盘图标，一键在**游戏 / 办公 / 会议**等场景间切换——自动关闭/启动程序、开关系统代理、切电源计划，切回时自动恢复。
+**v0.1.2** · 一个 Windows 桌面「场景切换」工具：右键任务栏托盘图标，一键在**游戏 / 办公 / 会议**等场景间切换——自动关闭/启动程序、开关系统代理、切电源计划，切回时自动恢复。
 
 ## 直接运行（发布版）
 
-从 [**Releases**](https://github.com/zhnq/gearshift/releases/latest) 下载 `GearShift-0.1.1-win-x64.zip`，解压后双击 **`GearShift.exe`**。
+从 [**Releases**](https://github.com/zhnq/gearshift/releases/latest) 下载 `GearShift-0.1.2-win-x64.zip`，解压后双击 **`GearShift.exe`**。
 
 首次运行前需各装一次以下两个运行时（一次安装，后续版本通用）：
 - [.NET 10 桌面运行时 (x64)](https://dotnet.microsoft.com/download/dotnet/10.0) — 页面选 **.NET Desktop Runtime**

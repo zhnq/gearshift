@@ -12,6 +12,7 @@ public sealed class WindowsSystemProbe : ISystemProbe
     private readonly ISystemProxy _proxy;
     private readonly IPowerPlanManager _power;
     private IReadOnlySet<string>? _cachedNames;
+    private IReadOnlySet<string>? _cachedSuspended;
 
     public WindowsSystemProbe(ProcessManager processes, ISystemProxy proxy, IPowerPlanManager power)
     {
@@ -22,6 +23,9 @@ public sealed class WindowsSystemProbe : ISystemProbe
 
     public IReadOnlySet<string> RunningProcessNames()
         => _cachedNames ??= _processes.RunningProcessNames();
+
+    public IReadOnlySet<string> SuspendedProcessNames()
+        => _cachedSuspended ??= _processes.SuspendedProcessNames();
 
     public bool? ProxyEnabled => _proxy.IsEnabled();
 

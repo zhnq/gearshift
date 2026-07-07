@@ -19,6 +19,7 @@ public sealed partial class EditScenePage : Page
 
     private ObservableCollection<AppEntry> LaunchApps { get; } = [];
     private ObservableCollection<AppEntry> CloseApps { get; } = [];
+    private ObservableCollection<AppEntry> SuspendApps { get; } = [];
     private ObservableCollection<ActionEntry> SceneActions { get; } = [];
 
     public EditScenePage()
@@ -26,6 +27,7 @@ public sealed partial class EditScenePage : Page
         InitializeComponent();
         LaunchList.ItemsSource = LaunchApps;
         CloseList.ItemsSource = CloseApps;
+        SuspendList.ItemsSource = SuspendApps;
         ActionList.ItemsSource = SceneActions;
     }
 
@@ -39,10 +41,12 @@ public sealed partial class EditScenePage : Page
         foreach (var app in _scene.Apps)
         {
             var entry = new AppEntry(app);
-            if (app.Disposition == AppDisposition.EnsureRunning)
-                LaunchApps.Add(entry);
-            else
-                CloseApps.Add(entry);
+            switch (app.Disposition)
+            {
+                case AppDisposition.EnsureRunning: LaunchApps.Add(entry); break;
+                case AppDisposition.EnsureSuspended: SuspendApps.Add(entry); break;
+                default: CloseApps.Add(entry); break;
+            }
         }
 
         foreach (var invocation in _scene.Actions)
@@ -78,6 +82,7 @@ public sealed partial class EditScenePage : Page
         if ((sender as Button)?.Tag is not AppEntry entry) return;
         LaunchApps.Remove(entry);
         CloseApps.Remove(entry);
+        SuspendApps.Remove(entry);
     }
 
     private async void OnAddClose(object sender, RoutedEventArgs e)
@@ -87,6 +92,16 @@ public sealed partial class EditScenePage : Page
             if (CloseApps.Any(a => a.Match.Equals(name, StringComparison.OrdinalIgnoreCase)))
                 continue;
             CloseApps.Add(new AppEntry(name, AppDisposition.EnsureClosed, null, name));
+        }
+    }
+
+    private async void OnAddSuspend(object sender, RoutedEventArgs e)
+    {
+        foreach (var name in await PickRunningProcessesAsync())
+        {
+            if (SuspendApps.Any(a => a.Match.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                continue;
+            SuspendApps.Add(new AppEntry(name, AppDisposition.EnsureSuspended, null, name));
         }
     }
 
@@ -237,7 +252,12 @@ public sealed partial class EditScenePage : Page
         {
             Name = string.IsNullOrWhiteSpace(NameBox.Text) ? "未命名场景" : NameBox.Text.Trim(),
             Icon = string.IsNullOrWhiteSpace(IconBox.Text) ? "🗂" : IconBox.Text.Trim(),
-            Apps = [.. LaunchApps.Select(a => a.ToRef()), .. CloseApps.Select(a => a.ToRef())],
+            Apps =
+            [
+                .. LaunchApps.Select(a => a.ToRef()),
+                .. CloseApps.Select(a => a.ToRef()),
+                .. SuspendApps.Select(a => a.ToRef()),
+            ],
             Proxy = proxy,
             PowerPlan = power,
             Actions = [.. SceneActions.Select(a => new ActionInvocation { ActionId = a.ActionId, Params = a.Params })],

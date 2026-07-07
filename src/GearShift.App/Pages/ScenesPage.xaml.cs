@@ -145,7 +145,10 @@ public sealed class SceneItem
     {
         var start = scene.Apps.Count(a => a.Disposition == AppDisposition.EnsureRunning);
         var close = scene.Apps.Count(a => a.Disposition == AppDisposition.EnsureClosed);
+        var freeze = scene.Apps.Count(a => a.Disposition == AppDisposition.EnsureSuspended);
         var parts = new List<string> { $"{start} 项启动", $"{close} 项关闭" };
+        if (freeze > 0)
+            parts.Add($"{freeze} 项冻结");
         if (scene.Proxy != TriState.Unchanged)
             parts.Add($"代理 {(scene.Proxy == TriState.On ? "开" : "关")}");
         return string.Join(" · ", parts);

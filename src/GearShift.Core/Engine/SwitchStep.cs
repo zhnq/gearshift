@@ -6,6 +6,8 @@ public enum StepKind
 {
     StartProcess,
     CloseProcess,
+    SuspendProcess,
+    ResumeProcess,
     SetProxy,
     SetPowerPlan,
     RunAction,

@@ -21,12 +21,14 @@ public sealed class DiffEngine
     public IReadOnlyList<SwitchStep> BuildPlan(Scene target, ISystemProbe probe)
     {
         var running = probe.RunningProcessNames();
+        var suspended = probe.SuspendedProcessNames();
         var steps = new List<SwitchStep>();
 
         foreach (var app in target.Apps)
         {
             var name = app.Match.Trim().ToLowerInvariant();
             var isRunning = running.Contains(name);
+            var isSuspended = suspended.Contains(name);
 
             switch (app.Disposition)
             {
@@ -40,12 +42,34 @@ public sealed class DiffEngine
                     });
                     break;
 
+                // A frozen process counts as running, so a plain "ensure running" must thaw it to be usable.
+                case AppDisposition.EnsureRunning when isSuspended:
+                    steps.Add(new SwitchStep
+                    {
+                        Kind = StepKind.ResumeProcess,
+                        Target = app.Label,
+                        Reason = "已冻结，解冻",
+                        App = app,
+                    });
+                    break;
+
                 case AppDisposition.EnsureClosed when isRunning && !_safety.IsProtected(name):
                     steps.Add(new SwitchStep
                     {
                         Kind = StepKind.CloseProcess,
                         Target = app.Label,
                         Reason = "运行中，关闭",
+                        App = app,
+                    });
+                    break;
+
+                // Only freeze something that's actually running, not yet frozen, and not protected.
+                case AppDisposition.EnsureSuspended when isRunning && !isSuspended && !_safety.IsProtected(name):
+                    steps.Add(new SwitchStep
+                    {
+                        Kind = StepKind.SuspendProcess,
+                        Target = app.Label,
+                        Reason = "运行中，冻结",
                         App = app,
                     });
                     break;

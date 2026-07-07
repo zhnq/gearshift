@@ -8,6 +8,13 @@ public enum AppDisposition
 
     /// <summary>The program should be closed; terminate it if it's running.</summary>
     EnsureClosed,
+
+    /// <summary>
+    /// The program should be running but frozen — every thread suspended (via NtSuspendProcess), so it
+    /// keeps its RAM and session but consumes no CPU. Only applies to an already-running process;
+    /// switching to a scene that wants it <see cref="EnsureRunning"/> thaws it again.
+    /// </summary>
+    EnsureSuspended,
 }
 
 /// <summary>

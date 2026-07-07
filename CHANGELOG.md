@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2
+
+### 新功能
+- **场景可「冻结」程序**（声明式新增 `EnsureSuspended` 处置，实验特性）：挂起进程的全部线程（`NtSuspendProcess`），保留内存与会话但不占 CPU——游戏时冻结挂机程序，退出后原样恢复。
+  - 是否已冻结由**实时探测线程状态**（`ThreadState=Wait / WaitReason=Suspended`）判定，不记 PID，无状态、跨会话可靠。
+  - 切到需要该程序运行的场景会**自动解冻**；安全名单中的关键进程永不冻结。
+- 场景卡片摘要显示「N 项冻结」。
+
+> 注：冻结依赖 Windows 未公开 API `NtSuspendProcess/NtResumeProcess`，标记为实验特性。
+
 ## 0.1.1
 
 ### 修复与改进

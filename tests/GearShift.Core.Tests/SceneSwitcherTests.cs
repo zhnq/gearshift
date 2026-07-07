@@ -10,18 +10,25 @@ public class SceneSwitcherTests
     private sealed class FakeProbe : ISystemProbe
     {
         public HashSet<string> Running { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> Suspended { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public bool? ProxyEnabled { get; init; }
         public string? ActivePowerPlan { get; init; }
         public IReadOnlySet<string> RunningProcessNames() => Running;
+        public IReadOnlySet<string> SuspendedProcessNames() => Suspended;
     }
 
     private sealed class FakeProcesses : IProcessController
     {
         public List<string> Started { get; } = [];
         public List<string> Closed { get; } = [];
+        public List<string> Suspended { get; } = [];
+        public List<string> Resumed { get; } = [];
         public CloseOutcome CloseResult { get; init; } = CloseOutcome.ClosedGracefully;
+        public bool ProcessPresent { get; init; } = true;
         public void Start(AppRef app) => Started.Add(app.Match);
         public CloseOutcome Close(string match) { Closed.Add(match); return CloseResult; }
+        public bool Suspend(string match) { Suspended.Add(match); return ProcessPresent; }
+        public bool Resume(string match) { Resumed.Add(match); return ProcessPresent; }
     }
 
     private sealed class FakeProxy : ISystemProxy
@@ -88,6 +95,51 @@ public class SceneSwitcherTests
 
         Assert.True(result.HadTrouble);
         Assert.Equal(1, result.WarningCount);
+    }
+
+    [Fact]
+    public async Task Switch_freezes_a_running_program()
+    {
+        var probe = new FakeProbe { Running = { "chrome.exe" } };
+        var procs = new FakeProcesses();
+
+        var switcher = new SceneSwitcher(
+            new DiffEngine(new SafetyList()),
+            () => probe, procs, new FakeProxy(), new FakePower(), new NoopActions());
+
+        var scene = new Scene
+        {
+            Id = "x", Name = "x",
+            Apps = [new AppRef { Match = "chrome.exe", Disposition = AppDisposition.EnsureSuspended }],
+        };
+
+        var result = await switcher.SwitchAsync(scene);
+
+        Assert.Contains("chrome.exe", procs.Suspended);
+        Assert.False(result.HadTrouble);
+    }
+
+    [Fact]
+    public async Task Switch_thaws_a_frozen_program_for_ensure_running()
+    {
+        var probe = new FakeProbe { Running = { "chrome.exe" }, Suspended = { "chrome.exe" } };
+        var procs = new FakeProcesses();
+
+        var switcher = new SceneSwitcher(
+            new DiffEngine(new SafetyList()),
+            () => probe, procs, new FakeProxy(), new FakePower(), new NoopActions());
+
+        var scene = new Scene
+        {
+            Id = "x", Name = "x",
+            Apps = [new AppRef { Match = "chrome.exe", Disposition = AppDisposition.EnsureRunning, Path = @"C:\chrome.exe" }],
+        };
+
+        var result = await switcher.SwitchAsync(scene);
+
+        Assert.Contains("chrome.exe", procs.Resumed);
+        Assert.Empty(procs.Started);
+        Assert.False(result.HadTrouble);
     }
 
     private sealed class NoopActions : IActionRunner
