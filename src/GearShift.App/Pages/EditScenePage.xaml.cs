@@ -94,13 +94,30 @@ public sealed partial class EditScenePage : Page
     {
         var picker = new FileOpenPicker();
         InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
+        // 桌面上的程序多是 .lnk 快捷方式，一并放行；.lnk 会解析到真实 exe 后再入库。
         picker.FileTypeFilter.Add(".exe");
+        picker.FileTypeFilter.Add(".lnk");
+        picker.FileTypeFilter.Add(".url");
+        picker.FileTypeFilter.Add(".bat");
+        picker.FileTypeFilter.Add(".cmd");
 
         var file = await picker.PickSingleFileAsync();
         if (file is null) return;
 
         var display = Path.GetFileNameWithoutExtension(file.Name);
-        LaunchApps.Add(new AppEntry(file.Name, AppDisposition.EnsureRunning, file.Path, display));
+        var targetPath = file.Path;
+
+        // 快捷方式：解析出目标 exe，这样启动的是真实程序、且进程名能匹配上（引擎靠进程名判断“是否已运行”）。
+        if (file.Name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+        {
+            var resolved = ShortcutResolver.ResolveTarget(file.Path);
+            if (!string.IsNullOrWhiteSpace(resolved))
+                targetPath = resolved;
+        }
+
+        // Match 用目标文件名（如 chrome.exe），供差异引擎与运行中进程比对。
+        var match = Path.GetFileName(targetPath);
+        LaunchApps.Add(new AppEntry(match, AppDisposition.EnsureRunning, targetPath, display));
     }
 
     private void OnRemoveAction(object sender, RoutedEventArgs e)
@@ -251,33 +268,82 @@ public sealed partial class EditScenePage : Page
     private async Task<IReadOnlyList<string>> PickRunningProcessesAsync()
     {
         var safety = new SafetyList();
-        var apps = AppServices.Processes.VisibleWindowApps()
-            .Where(a => !safety.IsProtected(a.Name))
-            .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var manual = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var list = new ListView { SelectionMode = ListViewSelectionMode.Multiple, MaxHeight = 300 };
 
-        if (apps.Count == 0)
-            apps = AppServices.Processes.RunningProcessNames()
-                .Where(n => !safety.IsProtected(n))
-                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
-                .Select(n => new RunningApp(n, null))
-                .ToList();
-
-        var list = new ListView { SelectionMode = ListViewSelectionMode.Multiple, MaxHeight = 360 };
-        foreach (var app in apps)
+        void AddRow(RunningApp app, bool selected)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
             var image = new Image { Width = 20, Height = 20, VerticalAlignment = VerticalAlignment.Center };
             row.Children.Add(image);
             row.Children.Add(new TextBlock { Text = app.Name, VerticalAlignment = VerticalAlignment.Center });
-            list.Items.Add(new ListViewItem { Content = row, Tag = app.Name });
+            var item = new ListViewItem { Content = row, Tag = app.Name };
+            list.Items.Add(item);
             _ = SetIconAsync(image, app.Path);
+            if (selected) list.SelectedItems.Add(item);
         }
+
+        void Populate(bool showAll)
+        {
+            list.Items.Clear();
+            list.SelectedItems.Clear();
+
+            // 手动/路径添加的项固定在最前、默认勾选。
+            foreach (var m in manual.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+                AddRow(new RunningApp(m, null), selected: true);
+
+            IEnumerable<RunningApp> apps = AppServices.Processes.VisibleWindowApps();
+            if (showAll || !apps.Any())
+                apps = AppServices.Processes.RunningProcessNames().Select(n => new RunningApp(n, null));
+
+            var ordered = apps
+                .Where(a => !safety.IsProtected(a.Name) && !manual.Contains(a.Name))
+                .GroupBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.First())
+                .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase);
+            foreach (var a in ordered)
+                AddRow(a, selected: false);
+        }
+
+        var input = new TextBox { PlaceholderText = "手动输入进程名或路径，如 wechat.exe", Width = 320 };
+        var addBtn = new Button { Content = "添加" };
+        var showAllToggle = new ToggleSwitch { OffContent = "仅可见窗口", OnContent = "全部进程" };
+
+        void CommitManual()
+        {
+            var name = NormalizeManualEntry(input.Text);
+            if (name is null || safety.IsProtected(name)) { input.Text = string.Empty; return; }
+            manual.Add(name);
+            input.Text = string.Empty;
+            Populate(showAllToggle.IsOn);
+        }
+
+        addBtn.Click += (_, _) => CommitManual();
+        input.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) CommitManual(); };
+        showAllToggle.Toggled += (_, _) => Populate(showAllToggle.IsOn);
+
+        var inputRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        inputRow.Children.Add(input);
+        inputRow.Children.Add(addBtn);
+
+        var header = new Grid { ColumnSpacing = 12 };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(inputRow, 0);
+        Grid.SetColumn(showAllToggle, 1);
+        header.Children.Add(inputRow);
+        header.Children.Add(showAllToggle);
+
+        var panel = new StackPanel { Spacing = 10, MinWidth = 440 };
+        panel.Children.Add(header);
+        panel.Children.Add(list);
+
+        Populate(showAll: false);
 
         var dialog = new ContentDialog
         {
             Title = "选择要关闭的程序",
-            Content = list,
+            Content = panel,
             PrimaryButtonText = "添加",
             CloseButtonText = "取消",
             XamlRoot = XamlRoot,
@@ -286,6 +352,27 @@ public sealed partial class EditScenePage : Page
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             return list.SelectedItems.Cast<ListViewItem>().Select(i => (string)i.Tag).ToList();
         return [];
+    }
+
+    /// <summary>
+    /// 规范化手动输入：接受进程名或完整路径（.lnk 会解析到目标 exe），统一成 <c>xxx.exe</c> 形式；空输入返回 null。
+    /// </summary>
+    private static string? NormalizeManualEntry(string? raw)
+    {
+        var text = raw?.Trim().Trim('"');
+        if (string.IsNullOrEmpty(text)) return null;
+
+        if (text.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+        {
+            var target = ShortcutResolver.ResolveTarget(text);
+            if (!string.IsNullOrWhiteSpace(target)) text = target;
+        }
+
+        var name = Path.GetFileName(text);
+        if (string.IsNullOrEmpty(name)) name = text;
+        if (string.IsNullOrEmpty(Path.GetExtension(name)))
+            name += ".exe";
+        return name;
     }
 
     private static async Task SetIconAsync(Image image, string? path)
