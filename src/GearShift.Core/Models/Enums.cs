@@ -8,13 +8,16 @@ public enum AppDisposition
 
     /// <summary>The program should be closed; terminate it if it's running.</summary>
     EnsureClosed,
+}
 
-    /// <summary>
-    /// The program should be running but frozen — every thread suspended (via NtSuspendProcess), so it
-    /// keeps its RAM and session but consumes no CPU. Only applies to an already-running process;
-    /// switching to a scene that wants it <see cref="EnsureRunning"/> thaws it again.
-    /// </summary>
-    EnsureSuspended,
+/// <summary>How a program should appear when GearShift starts it.</summary>
+public enum AppLaunchMode
+{
+    /// <summary>Ask Windows to open the program normally in the foreground.</summary>
+    Normal,
+
+    /// <summary>Ask Windows to start the program minimized. Applications may choose to minimize to their tray.</summary>
+    Minimized,
 }
 
 /// <summary>

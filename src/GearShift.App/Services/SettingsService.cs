@@ -9,6 +9,7 @@ public sealed class AppSettings
     public bool StartMinimized { get; set; } = false;
     public bool NotifyOnSwitch { get; set; } = true;
     public bool ConfirmPluginScripts { get; set; } = true;
+    public bool AutoCheckUpdates { get; set; } = true;
     public string? DefaultSceneId { get; set; }
 
     /// <summary>Action ids the user has disabled in the library. Disabled actions are never run.</summary>

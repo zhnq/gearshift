@@ -72,20 +72,24 @@
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Spacing="1">
                                                 <TextBlock Text="{x:Bind DisplayName}" />
                                                 <TextBlock Text="{x:Bind Match}" FontSize="12"
                                                            Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
                                             </StackPanel>
-                                            <Button Grid.Column="1" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                                            <Button Grid.Column="1" Content="{x:Bind LaunchModeLabel}" Margin="8,0"
+                                                    Click="OnToggleLaunchMode" Tag="{x:Bind}"
+                                                    ToolTipService.ToolTip="正常打开，或请求程序最小化启动" />
+                                            <Button Grid.Column="2" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
                                                     FontSize="12" Background="Transparent" BorderThickness="0"
                                                     Click="OnRemoveApp" Tag="{x:Bind}" />
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <Button Content="＋ 添加要启动的程序" HorizontalAlignment="Stretch" Click="OnAddLaunch" />
+                            <Button Content="＋ 从开始菜单、桌面或已安装程序添加" HorizontalAlignment="Stretch" Click="OnAddLaunch" />
                         </StackPanel>
 
                         <StackPanel Spacing="8">
@@ -114,33 +118,6 @@
                             <Button Content="＋ 添加要关闭的程序" HorizontalAlignment="Stretch" Click="OnAddClose" />
                         </StackPanel>
 
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="进入时冻结" FontWeight="SemiBold" FontSize="13" />
-                            <TextBlock Text="挂起进程，保留内存与会话但不占 CPU；切到需要它运行的场景会自动解冻" FontSize="12"
-                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" />
-                            <ItemsControl x:Name="SuspendList">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="local:AppEntry">
-                                        <Grid Padding="10,8" Margin="0,0,0,6" CornerRadius="6"
-                                              Background="{ThemeResource ControlFillColorSecondaryBrush}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel Spacing="1">
-                                                <TextBlock Text="{x:Bind DisplayName}" />
-                                                <TextBlock Text="{x:Bind Match}" FontSize="12"
-                                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
-                                            </StackPanel>
-                                            <Button Grid.Column="1" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
-                                                    FontSize="12" Background="Transparent" BorderThickness="0"
-                                                    Click="OnRemoveApp" Tag="{x:Bind}" />
-                                        </Grid>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <Button Content="＋ 添加要冻结的程序" HorizontalAlignment="Stretch" Click="OnAddSuspend" />
-                        </StackPanel>
                     </StackPanel>
                 </Border>
 
