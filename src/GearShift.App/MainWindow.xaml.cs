@@ -1,8 +1,10 @@
 using H.NotifyIcon.Core;
+using H.NotifyIcon;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using System.Windows.Input;
 using GearShift.App.Pages;
 using GearShift.App.Services;
 using GearShift.Core.Models;
@@ -21,6 +23,7 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         Title = "GearShift";
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
 
         // Fluent window material + a sensible default size, matching the prototype.
         SystemBackdrop = new MicaBackdrop();
@@ -39,7 +42,7 @@ public sealed partial class MainWindow : Window
         UpdateTrayTooltip();
 
         if (SettingsService.Current.StartMinimized)
-            AppWindow.Hide();
+            this.Hide();
 
         ApplyStartupScene();
         if (SettingsService.Current.EnableAutomation)
@@ -128,25 +131,28 @@ public sealed partial class MainWindow : Window
     private async Task ActivateAutomatedSceneAsync(Scene scene)
     {
         var result = await AppServices.SwitchAsync(scene);
-        BuildTrayMenu();
-        UpdateTrayTooltip();
-        if (SettingsService.Current.NotifyOnSwitch)
+        await RunOnUiThreadAsync(() =>
         {
-            var summary = result.WasNoOp ? "已处于目标状态" : $"{result.OkCount} 项完成" + (result.HadTrouble ? $" · {result.WarningCount + result.FailedCount} 项提示" : "");
-            try { Tray.ShowNotification($"已切换到 {scene.Name}", summary, NotificationIcon.Info); } catch { }
-        }
+            BuildTrayMenu();
+            UpdateTrayTooltip();
+            if (SettingsService.Current.NotifyOnSwitch)
+            {
+                var summary = result.WasNoOp ? "已处于目标状态" : $"{result.OkCount} 项完成" + (result.HadTrouble ? $" · {result.WarningCount + result.FailedCount} 项提示" : "");
+                try { Tray.ShowNotification($"已切换到 {scene.Name}", summary, NotificationIcon.Info); } catch { }
+            }
+        });
     }
 
     private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (_exiting) return;
         args.Cancel = true;
-        AppWindow.Hide();
+        this.Hide();
     }
 
     private void ShowFromTray()
     {
-        AppWindow.Show();
+        this.Show();
         Activate();
     }
 
@@ -181,36 +187,36 @@ public sealed partial class MainWindow : Window
             var label = string.IsNullOrEmpty(scene.Icon) ? scene.Name : $"{scene.Icon}  {scene.Name}";
             if (scene.Id == AppServices.ActiveSceneId)
                 label += "（再次启用）";
-            var item = new MenuFlyoutItem { Text = label, Tag = scene };
+            var item = new MenuFlyoutItem
+            {
+                Text = label,
+                Tag = scene,
+                Command = new RelayCommand(() => _ = ActivateTraySceneAsync(scene)),
+            };
             if (scene.Id == AppServices.ActiveSceneId)
                 item.Icon = new FontIcon { Glyph = ((char)0xE73E).ToString() }; // checkmark on the active scene
-            item.Click += OnTraySceneClick;
             TrayMenu.Items.Add(item);
         }
 
         TrayMenu.Items.Add(new MenuFlyoutSeparator());
 
-        var open = new MenuFlyoutItem { Text = "打开主窗口" };
-        open.Click += (_, _) => ShowFromTray();
+        var open = new MenuFlyoutItem
+        {
+            Text = "打开主窗口",
+            Command = new RelayCommand(ShowFromTray),
+        };
         TrayMenu.Items.Add(open);
 
-        var exit = new MenuFlyoutItem { Text = "退出 GearShift" };
-        exit.Click += (_, _) =>
+        var exit = new MenuFlyoutItem
         {
-            _exiting = true;
-            _automation?.Dispose();
-            _hotkeys?.Dispose();
-            Tray.Dispose();
-            Application.Current.Exit();
+            Text = "退出 GearShift",
+            Command = new RelayCommand(ExitFromTray),
         };
         TrayMenu.Items.Add(exit);
     }
 
-    private async void OnTraySceneClick(object sender, RoutedEventArgs e)
+    private async Task ActivateTraySceneAsync(Scene scene)
     {
-        if ((sender as MenuFlyoutItem)?.Tag is not Scene scene)
-            return;
-
         var result = await AppServices.SwitchAsync(scene);
         BuildTrayMenu();
         UpdateTrayTooltip();
@@ -229,5 +235,48 @@ public sealed partial class MainWindow : Window
     {
         var active = AppServices.Scenes.FirstOrDefault(s => s.Id == AppServices.ActiveSceneId);
         Tray.ToolTipText = active is null ? "GearShift" : $"GearShift — 当前：{active.Name}";
+    }
+
+    private void ExitFromTray()
+    {
+        _exiting = true;
+        _automation?.Dispose();
+        _hotkeys?.Dispose();
+        Tray.Dispose();
+        Application.Current.Exit();
+    }
+
+    private Task RunOnUiThreadAsync(Action action)
+    {
+        if (DispatcherQueue.HasThreadAccess)
+        {
+            action();
+            return Task.CompletedTask;
+        }
+
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!DispatcherQueue.TryEnqueue(() =>
+            {
+                try
+                {
+                    action();
+                    completion.SetResult();
+                }
+                catch (Exception ex)
+                {
+                    completion.SetException(ex);
+                }
+            }))
+        {
+            completion.SetException(new InvalidOperationException("无法将操作调度到 UI 线程。"));
+        }
+        return completion.Task;
+    }
+
+    private sealed class RelayCommand(Action execute) : ICommand
+    {
+        public event EventHandler? CanExecuteChanged { add { } remove { } }
+        public bool CanExecute(object? parameter) => true;
+        public void Execute(object? parameter) => execute();
     }
 }

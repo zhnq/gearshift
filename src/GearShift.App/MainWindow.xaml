@@ -37,7 +37,7 @@
 
             <tb:TaskbarIcon x:Name="Tray" ToolTipText="GearShift">
                 <tb:TaskbarIcon.IconSource>
-                    <tb:GeneratedIconSource Text="G" Foreground="White" Background="#005FB8" />
+                    <BitmapImage UriSource="ms-appx:///Assets/app-icon.png" />
                 </tb:TaskbarIcon.IconSource>
                 <tb:TaskbarIcon.ContextFlyout>
                     <MenuFlyout x:Name="TrayMenu" />
