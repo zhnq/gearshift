@@ -2,11 +2,18 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text.Json;
 
 namespace GearShift.App.Services;
 
-public sealed record UpdateInfo(Version Version, string Tag, string Name, string Notes, string DownloadUrl);
+public sealed record UpdateInfo(
+    Version Version,
+    string Tag,
+    string Name,
+    string Notes,
+    string DownloadUrl,
+    string Sha256);
 
 public static class UpdateService
 {
@@ -27,12 +34,18 @@ public static class UpdateService
         var asset = root.GetProperty("assets").EnumerateArray().FirstOrDefault(x =>
             (x.GetProperty("name").GetString() ?? "").EndsWith("-win-x64.zip", StringComparison.OrdinalIgnoreCase));
         if (asset.ValueKind == JsonValueKind.Undefined) return null;
+        var digest = asset.TryGetProperty("digest", out var digestElement)
+            ? digestElement.GetString() ?? ""
+            : "";
+        if (!digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase) || digest.Length != 71)
+            throw new InvalidDataException("GitHub Release 未提供有效的 SHA-256 摘要，已拒绝不安全更新");
         return new UpdateInfo(
             latest,
             tag,
             root.GetProperty("name").GetString() ?? tag,
             root.GetProperty("body").GetString() ?? "",
-            asset.GetProperty("browser_download_url").GetString()!);
+            asset.GetProperty("browser_download_url").GetString()!,
+            digest[7..]);
     }
 
     public static async Task ApplyAsync(UpdateInfo update, CancellationToken ct = default)
@@ -43,6 +56,16 @@ public static class UpdateService
         await using (var source = await Client.GetStreamAsync(update.DownloadUrl, ct))
         await using (var target = File.Create(zip))
             await source.CopyToAsync(target, ct);
+
+        await using (var downloaded = File.OpenRead(zip))
+        {
+            var actual = Convert.ToHexString(await SHA256.HashDataAsync(downloaded, ct));
+            if (!string.Equals(actual, update.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                Directory.Delete(staging, recursive: true);
+                throw new InvalidDataException($"更新包校验失败。期望 {update.Sha256}，实际 {actual}");
+            }
+        }
 
         var payload = Path.Combine(staging, "payload");
         ZipFile.ExtractToDirectory(zip, payload, overwriteFiles: true);

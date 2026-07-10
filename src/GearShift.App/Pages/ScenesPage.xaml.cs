@@ -121,10 +121,12 @@ public sealed partial class ScenesPage : Page
         {
             Title = $"已切换到 {scene.Name}",
             Content = body.ToString().TrimEnd(),
+            PrimaryButtonText = result.FailedCount > 0 && !ElevationHelper.IsElevated() ? "管理员重试" : null,
             CloseButtonText = "完成",
             XamlRoot = XamlRoot,
         };
-        await dialog.ShowAsync();
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            ElevationHelper.RestartElevated(scene.Id);
     }
 }
 
