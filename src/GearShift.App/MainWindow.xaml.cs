@@ -39,6 +39,56 @@ public sealed partial class MainWindow : Window
             AppWindow.Hide();
 
         ApplyDefaultScene();
+        _ = CheckForUpdatesAsync();
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        if (!SettingsService.Current.AutoCheckUpdates) return;
+        try
+        {
+            var update = await UpdateService.CheckAsync();
+            if (update is null || Content?.XamlRoot is null) return;
+            AppWindow.Show();
+            Activate();
+            var notes = string.IsNullOrWhiteSpace(update.Notes) ? "此版本未提供更新说明。" : update.Notes;
+            if (notes.Length > 1800) notes = notes[..1800] + "…";
+            var dialog = new ContentDialog
+            {
+                Title = $"GearShift {update.Tag} 可用",
+                Content = new ScrollViewer
+                {
+                    MaxHeight = 360,
+                    Content = new TextBlock { Text = notes, TextWrapping = TextWrapping.Wrap },
+                },
+                PrimaryButtonText = "下载并更新",
+                CloseButtonText = "稍后",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = Content.XamlRoot,
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            try
+            {
+                await UpdateService.ApplyAsync(update);
+                _exiting = true;
+                Tray.Dispose();
+                Application.Current.Exit();
+            }
+            catch (Exception ex)
+            {
+                await new ContentDialog
+                {
+                    Title = "更新失败",
+                    Content = ex.Message,
+                    CloseButtonText = "完成",
+                    XamlRoot = Content.XamlRoot,
+                }.ShowAsync();
+            }
+        }
+        catch
+        {
+            // Automatic checks are intentionally quiet. Manual checks in Settings surface errors.
+        }
     }
 
     private async void ApplyDefaultScene()
@@ -96,6 +146,8 @@ public sealed partial class MainWindow : Window
         foreach (var scene in AppServices.Scenes)
         {
             var label = string.IsNullOrEmpty(scene.Icon) ? scene.Name : $"{scene.Icon}  {scene.Name}";
+            if (scene.Id == AppServices.ActiveSceneId)
+                label += "（再次启用）";
             var item = new MenuFlyoutItem { Text = label, Tag = scene };
             if (scene.Id == AppServices.ActiveSceneId)
                 item.Icon = new FontIcon { Glyph = ((char)0xE73E).ToString() }; // checkmark on the active scene

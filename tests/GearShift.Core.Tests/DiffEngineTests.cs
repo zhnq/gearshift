@@ -10,11 +10,9 @@ public class DiffEngineTests
     private sealed class FakeProbe : ISystemProbe
     {
         public HashSet<string> Running { get; init; } = new(StringComparer.OrdinalIgnoreCase);
-        public HashSet<string> Suspended { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public bool? ProxyEnabled { get; init; }
         public string? ActivePowerPlan { get; init; }
         public IReadOnlySet<string> RunningProcessNames() => Running;
-        public IReadOnlySet<string> SuspendedProcessNames() => Suspended;
     }
 
     private static DiffEngine Engine() => new(new SafetyList());
@@ -97,66 +95,6 @@ public class DiffEngineTests
         var plan = Engine().BuildPlan(GameScene(), probe);
 
         Assert.Empty(plan);
-    }
-
-    [Fact]
-    public void Suspends_a_running_unfrozen_program()
-    {
-        var scene = new Scene
-        {
-            Id = "x", Name = "x",
-            Apps = [new AppRef { Match = "chrome.exe", Disposition = AppDisposition.EnsureSuspended }],
-        };
-        var probe = new FakeProbe { Running = { "chrome.exe" } };
-
-        var plan = Engine().BuildPlan(scene, probe);
-
-        Assert.Contains(plan, s => s.Kind == StepKind.SuspendProcess && s.App!.Match == "chrome.exe");
-    }
-
-    [Fact]
-    public void Suspend_is_a_no_op_when_not_running_or_already_frozen()
-    {
-        var scene = new Scene
-        {
-            Id = "x", Name = "x",
-            Apps = [new AppRef { Match = "chrome.exe", Disposition = AppDisposition.EnsureSuspended }],
-        };
-
-        var notRunning = Engine().BuildPlan(scene, new FakeProbe());
-        var alreadyFrozen = Engine().BuildPlan(scene, new FakeProbe { Running = { "chrome.exe" }, Suspended = { "chrome.exe" } });
-
-        Assert.Empty(notRunning);
-        Assert.Empty(alreadyFrozen);
-    }
-
-    [Fact]
-    public void Never_suspends_a_protected_process()
-    {
-        var scene = new Scene
-        {
-            Id = "x", Name = "x",
-            Apps = [new AppRef { Match = "explorer.exe", Disposition = AppDisposition.EnsureSuspended }],
-        };
-        var probe = new FakeProbe { Running = { "explorer.exe" } };
-
-        Assert.Empty(Engine().BuildPlan(scene, probe));
-    }
-
-    [Fact]
-    public void EnsureRunning_thaws_a_frozen_program_instead_of_starting_it()
-    {
-        var scene = new Scene
-        {
-            Id = "x", Name = "x",
-            Apps = [new AppRef { Match = "chrome.exe", Disposition = AppDisposition.EnsureRunning, Path = @"C:\chrome.exe" }],
-        };
-        var probe = new FakeProbe { Running = { "chrome.exe" }, Suspended = { "chrome.exe" } };
-
-        var plan = Engine().BuildPlan(scene, probe);
-
-        Assert.Contains(plan, s => s.Kind == StepKind.ResumeProcess && s.App!.Match == "chrome.exe");
-        Assert.DoesNotContain(plan, s => s.Kind == StepKind.StartProcess);
     }
 
     [Fact]

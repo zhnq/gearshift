@@ -23,6 +23,9 @@ public sealed record AppRef
     /// <summary>Optional working directory for launch.</summary>
     public string? WorkingDirectory { get; init; }
 
+    /// <summary>Whether the program opens normally or starts minimized.</summary>
+    public AppLaunchMode LaunchMode { get; init; }
+
     /// <summary>Friendly name shown in the UI. Falls back to <see cref="Match"/> when null.</summary>
     public string? DisplayName { get; init; }
 

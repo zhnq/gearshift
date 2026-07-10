@@ -19,7 +19,6 @@ public sealed partial class EditScenePage : Page
 
     private ObservableCollection<AppEntry> LaunchApps { get; } = [];
     private ObservableCollection<AppEntry> CloseApps { get; } = [];
-    private ObservableCollection<AppEntry> SuspendApps { get; } = [];
     private ObservableCollection<ActionEntry> SceneActions { get; } = [];
 
     public EditScenePage()
@@ -27,7 +26,6 @@ public sealed partial class EditScenePage : Page
         InitializeComponent();
         LaunchList.ItemsSource = LaunchApps;
         CloseList.ItemsSource = CloseApps;
-        SuspendList.ItemsSource = SuspendApps;
         ActionList.ItemsSource = SceneActions;
     }
 
@@ -44,7 +42,6 @@ public sealed partial class EditScenePage : Page
             switch (app.Disposition)
             {
                 case AppDisposition.EnsureRunning: LaunchApps.Add(entry); break;
-                case AppDisposition.EnsureSuspended: SuspendApps.Add(entry); break;
                 default: CloseApps.Add(entry); break;
             }
         }
@@ -82,7 +79,6 @@ public sealed partial class EditScenePage : Page
         if ((sender as Button)?.Tag is not AppEntry entry) return;
         LaunchApps.Remove(entry);
         CloseApps.Remove(entry);
-        SuspendApps.Remove(entry);
     }
 
     private async void OnAddClose(object sender, RoutedEventArgs e)
@@ -95,18 +91,57 @@ public sealed partial class EditScenePage : Page
         }
     }
 
-    private async void OnAddSuspend(object sender, RoutedEventArgs e)
-    {
-        foreach (var name in await PickRunningProcessesAsync())
-        {
-            if (SuspendApps.Any(a => a.Match.Equals(name, StringComparison.OrdinalIgnoreCase)))
-                continue;
-            SuspendApps.Add(new AppEntry(name, AppDisposition.EnsureSuspended, null, name));
-        }
-    }
-
     private async void OnAddLaunch(object sender, RoutedEventArgs e)
     {
+        var candidates = ProgramCatalog.GetAll();
+        var list = new ListView
+        {
+            SelectionMode = ListViewSelectionMode.Multiple,
+            MaxHeight = 360,
+            ItemsSource = candidates.Select(x => new ProgramPickerItem(x)).ToList(),
+        };
+        var search = new TextBox { PlaceholderText = "搜索程序名称", MinWidth = 420 };
+        var source = new ComboBox { MinWidth = 140, SelectedIndex = 0 };
+        foreach (var label in new[] { "全部来源", "开始菜单", "桌面", "已安装程序" }) source.Items.Add(label);
+
+        void Refresh()
+        {
+            var term = search.Text.Trim();
+            var sourceIndex = source.SelectedIndex - 1;
+            list.ItemsSource = candidates
+                .Where(x => (sourceIndex < 0 || (int)x.Source == sourceIndex)
+                            && (term.Length == 0 || x.Name.Contains(term, StringComparison.CurrentCultureIgnoreCase)))
+                .Select(x => new ProgramPickerItem(x))
+                .ToList();
+        }
+        search.TextChanged += (_, _) => Refresh();
+        source.SelectionChanged += (_, _) => Refresh();
+
+        var filterRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        filterRow.Children.Add(search);
+        filterRow.Children.Add(source);
+        var panel = new StackPanel { Spacing = 10, MinWidth = 620 };
+        panel.Children.Add(new TextBlock { Text = "可多选。找不到时使用“浏览文件”，支持 exe、快捷方式和脚本。" });
+        panel.Children.Add(filterRow);
+        panel.Children.Add(list);
+        var dialog = new ContentDialog
+        {
+            Title = "添加要启动的程序",
+            Content = panel,
+            PrimaryButtonText = "添加所选",
+            SecondaryButtonText = "浏览文件",
+            CloseButtonText = "取消",
+            XamlRoot = XamlRoot,
+        };
+        var result = await dialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            foreach (var item in list.SelectedItems.Cast<ProgramPickerItem>())
+                AddLaunchCandidate(item.Candidate.Path, item.Candidate.Name);
+            return;
+        }
+        if (result != ContentDialogResult.Secondary) return;
+
         var picker = new FileOpenPicker();
         InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(App.MainWindow));
         // 桌面上的程序多是 .lnk 快捷方式，一并放行；.lnk 会解析到真实 exe 后再入库。
@@ -119,20 +154,35 @@ public sealed partial class EditScenePage : Page
         var file = await picker.PickSingleFileAsync();
         if (file is null) return;
 
-        var display = Path.GetFileNameWithoutExtension(file.Name);
-        var targetPath = file.Path;
+        AddLaunchCandidate(file.Path, Path.GetFileNameWithoutExtension(file.Name));
+    }
+
+    private void AddLaunchCandidate(string path, string display)
+    {
+        var targetPath = path;
 
         // 快捷方式：解析出目标 exe，这样启动的是真实程序、且进程名能匹配上（引擎靠进程名判断“是否已运行”）。
-        if (file.Name.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
+        if (path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase))
         {
-            var resolved = ShortcutResolver.ResolveTarget(file.Path);
+            var resolved = ShortcutResolver.ResolveTarget(path);
             if (!string.IsNullOrWhiteSpace(resolved))
                 targetPath = resolved;
         }
 
         // Match 用目标文件名（如 chrome.exe），供差异引擎与运行中进程比对。
         var match = Path.GetFileName(targetPath);
+        if (LaunchApps.Any(a => a.Match.Equals(match, StringComparison.OrdinalIgnoreCase))) return;
         LaunchApps.Add(new AppEntry(match, AppDisposition.EnsureRunning, targetPath, display));
+    }
+
+    private void OnToggleLaunchMode(object sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is not AppEntry entry) return;
+        entry.LaunchMode = entry.LaunchMode == AppLaunchMode.Normal
+            ? AppLaunchMode.Minimized
+            : AppLaunchMode.Normal;
+        LaunchList.ItemsSource = null;
+        LaunchList.ItemsSource = LaunchApps;
     }
 
     private void OnRemoveAction(object sender, RoutedEventArgs e)
@@ -256,7 +306,6 @@ public sealed partial class EditScenePage : Page
             [
                 .. LaunchApps.Select(a => a.ToRef()),
                 .. CloseApps.Select(a => a.ToRef()),
-                .. SuspendApps.Select(a => a.ToRef()),
             ],
             Proxy = proxy,
             PowerPlan = power,
@@ -303,7 +352,7 @@ public sealed partial class EditScenePage : Page
             if (selected) list.SelectedItems.Add(item);
         }
 
-        void Populate(bool showAll)
+        void Populate(int sourceMode)
         {
             list.Items.Clear();
             list.SelectedItems.Clear();
@@ -312,11 +361,17 @@ public sealed partial class EditScenePage : Page
             foreach (var m in manual.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
                 AddRow(new RunningApp(m, null), selected: true);
 
-            IEnumerable<RunningApp> apps = AppServices.Processes.VisibleWindowApps();
-            if (showAll || !apps.Any())
-                apps = AppServices.Processes.RunningProcessNames().Select(n => new RunningApp(n, null));
+            IEnumerable<RunningApp> apps = sourceMode switch
+            {
+                1 => AppServices.Processes.RunningProcessNames().Select(n => new RunningApp(n, null)),
+                2 => ProgramCatalog.GetAll().Select(x => new RunningApp(Path.GetFileName(x.Path), x.Path)),
+                _ => AppServices.Processes.VisibleWindowApps(),
+            };
+            var materialized = apps.ToList();
+            if (sourceMode == 0 && materialized.Count == 0)
+                materialized = AppServices.Processes.RunningProcessNames().Select(n => new RunningApp(n, null)).ToList();
 
-            var ordered = apps
+            var ordered = materialized
                 .Where(a => !safety.IsProtected(a.Name) && !manual.Contains(a.Name))
                 .GroupBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.First())
@@ -327,7 +382,8 @@ public sealed partial class EditScenePage : Page
 
         var input = new TextBox { PlaceholderText = "手动输入进程名或路径，如 wechat.exe", Width = 320 };
         var addBtn = new Button { Content = "添加" };
-        var showAllToggle = new ToggleSwitch { OffContent = "仅可见窗口", OnContent = "全部进程" };
+        var sourceCombo = new ComboBox { MinWidth = 150, SelectedIndex = 0 };
+        foreach (var label in new[] { "当前窗口", "所有进程", "已安装程序" }) sourceCombo.Items.Add(label);
 
         void CommitManual()
         {
@@ -335,12 +391,12 @@ public sealed partial class EditScenePage : Page
             if (name is null || safety.IsProtected(name)) { input.Text = string.Empty; return; }
             manual.Add(name);
             input.Text = string.Empty;
-            Populate(showAllToggle.IsOn);
+            Populate(sourceCombo.SelectedIndex);
         }
 
         addBtn.Click += (_, _) => CommitManual();
         input.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Enter) CommitManual(); };
-        showAllToggle.Toggled += (_, _) => Populate(showAllToggle.IsOn);
+        sourceCombo.SelectionChanged += (_, _) => Populate(sourceCombo.SelectedIndex);
 
         var inputRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         inputRow.Children.Add(input);
@@ -350,15 +406,15 @@ public sealed partial class EditScenePage : Page
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         Grid.SetColumn(inputRow, 0);
-        Grid.SetColumn(showAllToggle, 1);
+        Grid.SetColumn(sourceCombo, 1);
         header.Children.Add(inputRow);
-        header.Children.Add(showAllToggle);
+        header.Children.Add(sourceCombo);
 
         var panel = new StackPanel { Spacing = 10, MinWidth = 440 };
         panel.Children.Add(header);
         panel.Children.Add(list);
 
-        Populate(showAll: false);
+        Populate(sourceMode: 0);
 
         var dialog = new ContentDialog
         {
@@ -420,6 +476,7 @@ public sealed class AppEntry
         DisplayName = app.Label;
         Path = app.Path;
         Disposition = app.Disposition;
+        LaunchMode = app.LaunchMode;
     }
 
     public AppEntry(string match, AppDisposition disposition, string? path, string? displayName)
@@ -434,6 +491,8 @@ public sealed class AppEntry
     public string DisplayName { get; }
     public string? Path { get; }
     public AppDisposition Disposition { get; }
+    public AppLaunchMode LaunchMode { get; set; }
+    public string LaunchModeLabel => LaunchMode == AppLaunchMode.Minimized ? "最小化" : "正常打开";
 
     public AppRef ToRef() => new()
     {
@@ -441,5 +500,14 @@ public sealed class AppEntry
         DisplayName = DisplayName,
         Path = Path,
         Disposition = Disposition,
+        LaunchMode = LaunchMode,
     };
+}
+
+public sealed class ProgramPickerItem
+{
+    public ProgramPickerItem(ProgramCandidate candidate) => Candidate = candidate;
+    public ProgramCandidate Candidate { get; }
+    public string Name => Candidate.Name;
+    public override string ToString() => $"{Candidate.Name}    · {Candidate.SourceLabel}";
 }

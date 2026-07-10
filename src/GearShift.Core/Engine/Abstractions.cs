@@ -16,12 +16,6 @@ public interface IProcessController
 {
     void Start(AppRef app);
     CloseOutcome Close(string match);
-
-    /// <summary>Freezes every process matching the name (all threads suspended). True if any was frozen.</summary>
-    bool Suspend(string match);
-
-    /// <summary>Thaws every process matching the name. True if any was resumed.</summary>
-    bool Resume(string match);
 }
 
 /// <summary>Reads and writes the Windows system proxy.</summary>

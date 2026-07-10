@@ -99,6 +99,9 @@ public sealed partial class ProcessManager : IProcessController
                 ? Path.GetDirectoryName(app.Path) ?? string.Empty
                 : app.WorkingDirectory,
             UseShellExecute = true,
+            WindowStyle = app.LaunchMode == AppLaunchMode.Minimized
+                ? ProcessWindowStyle.Minimized
+                : ProcessWindowStyle.Normal,
         };
         Process.Start(psi);
     }

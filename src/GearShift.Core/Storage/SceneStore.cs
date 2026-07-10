@@ -42,6 +42,27 @@ public sealed class SceneStore
             return new SceneDocument();
 
         var json = File.ReadAllText(FilePath);
+        // v0.1.2 briefly exposed an unreliable process-freezing mode. Drop those entries during
+        // upgrade so an old settings file remains readable after the feature is removed.
+        if (json.Contains("ensureSuspended", StringComparison.OrdinalIgnoreCase))
+        {
+            var node = global::System.Text.Json.Nodes.JsonNode.Parse(json);
+            if (node?["scenes"] is global::System.Text.Json.Nodes.JsonArray scenes)
+            {
+                foreach (var scene in scenes.OfType<global::System.Text.Json.Nodes.JsonObject>())
+                {
+                    if (scene["apps"] is not global::System.Text.Json.Nodes.JsonArray apps) continue;
+                    for (var i = apps.Count - 1; i >= 0; i--)
+                    {
+                        var disposition = apps[i]?["disposition"]?.GetValue<string>();
+                        if (string.Equals(disposition, "ensureSuspended", StringComparison.OrdinalIgnoreCase))
+                            apps.RemoveAt(i);
+                    }
+                }
+                json = node.ToJsonString(Options);
+                File.WriteAllText(FilePath, json);
+            }
+        }
         return JsonSerializer.Deserialize<SceneDocument>(json, Options) ?? new SceneDocument();
     }
 

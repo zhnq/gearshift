@@ -4,8 +4,8 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <ScrollViewer>
-        <StackPanel Padding="36,28" Spacing="20" MaxWidth="920" HorizontalAlignment="Stretch">
+    <ScrollViewer HorizontalContentAlignment="Center">
+        <StackPanel Padding="36,28" Spacing="20" Width="920" MaxWidth="920" HorizontalAlignment="Center">
             <TextBlock Text="设置" Style="{StaticResource TitleTextBlockStyle}" />
 
             <!-- 常规 -->
@@ -144,6 +144,44 @@
                             </StackPanel>
                             <ToggleSwitch x:Name="ConfirmPluginToggle" Grid.Column="1" OnContent="" OffContent=""
                                           Toggled="OnSettingChanged" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- 软件更新 -->
+            <StackPanel Spacing="8">
+                <TextBlock Text="软件更新" FontWeight="SemiBold"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Border CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <Grid Padding="16,12" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="1">
+                                <TextBlock Text="启动时自动检查" />
+                                <TextBlock Text="发现新版本后询问，不会自动安装" FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="AutoUpdateToggle" Grid.Column="1" OnContent="" OffContent=""
+                                          Toggled="OnSettingChanged" />
+                        </Grid>
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <Grid Padding="16,12" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Spacing="1">
+                                <TextBlock Text="检查 GitHub 最新版" />
+                                <TextBlock x:Name="UpdateStatusText" Text="尚未检查" FontSize="12"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
+                            <Button x:Name="CheckUpdateButton" Grid.Column="1" Content="检查更新"
+                                    Click="OnCheckUpdate" />
                         </Grid>
                     </StackPanel>
                 </Border>

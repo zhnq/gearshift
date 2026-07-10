@@ -24,6 +24,7 @@ public sealed partial class SettingsPage : Page
         StartMinToggle.IsOn = s.StartMinimized;
         NotifyToggle.IsOn = s.NotifyOnSwitch;
         ConfirmPluginToggle.IsOn = s.ConfirmPluginScripts;
+        AutoUpdateToggle.IsOn = s.AutoCheckUpdates;
 
         ThemeCombo.SelectedIndex = s.Theme switch { "Light" => 1, "Dark" => 2, _ => 0 };
 
@@ -90,7 +91,60 @@ public sealed partial class SettingsPage : Page
         SettingsService.Current.StartMinimized = StartMinToggle.IsOn;
         SettingsService.Current.NotifyOnSwitch = NotifyToggle.IsOn;
         SettingsService.Current.ConfirmPluginScripts = ConfirmPluginToggle.IsOn;
+        SettingsService.Current.AutoCheckUpdates = AutoUpdateToggle.IsOn;
         SettingsService.Save();
+    }
+
+    private async void OnCheckUpdate(object sender, RoutedEventArgs e)
+    {
+        CheckUpdateButton.IsEnabled = false;
+        UpdateStatusText.Text = "正在连接 GitHub…";
+        try
+        {
+            var update = await UpdateService.CheckAsync();
+            if (update is null)
+            {
+                UpdateStatusText.Text = $"已是最新版 {UpdateService.CurrentVersion.ToString(3)}";
+                return;
+            }
+            UpdateStatusText.Text = $"发现 {update.Tag}";
+            await PromptAndApplyUpdateAsync(update);
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText.Text = "检查失败";
+            await new ContentDialog
+            {
+                Title = "无法检查更新",
+                Content = ex.Message,
+                CloseButtonText = "完成",
+                XamlRoot = XamlRoot,
+            }.ShowAsync();
+        }
+        finally { CheckUpdateButton.IsEnabled = true; }
+    }
+
+    private async Task PromptAndApplyUpdateAsync(UpdateInfo update)
+    {
+        var notes = string.IsNullOrWhiteSpace(update.Notes) ? "此版本未提供更新说明。" : update.Notes;
+        if (notes.Length > 1800) notes = notes[..1800] + "…";
+        var dialog = new ContentDialog
+        {
+            Title = $"更新到 {update.Tag}？",
+            Content = new ScrollViewer
+            {
+                MaxHeight = 360,
+                Content = new TextBlock { Text = notes, TextWrapping = TextWrapping.Wrap },
+            },
+            PrimaryButtonText = "下载并更新",
+            CloseButtonText = "稍后",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        UpdateStatusText.Text = "正在下载更新…";
+        await UpdateService.ApplyAsync(update);
+        Application.Current.Exit();
     }
 
     private async void OnViewSafetyList(object sender, RoutedEventArgs e)

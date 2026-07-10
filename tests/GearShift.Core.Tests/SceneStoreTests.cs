@@ -34,7 +34,7 @@ public class SceneStoreTests
                         Id = "game", Name = "游戏模式", Icon = "🎮", Proxy = TriState.Off, PowerPlan = "high",
                         Apps =
                         [
-                            new AppRef { Match = "steam.exe", Disposition = AppDisposition.EnsureRunning, Path = @"C:\steam.exe" },
+                            new AppRef { Match = "steam.exe", Disposition = AppDisposition.EnsureRunning, Path = @"C:\steam.exe", LaunchMode = AppLaunchMode.Minimized },
                             new AppRef { Match = "outlook.exe", Disposition = AppDisposition.EnsureClosed },
                         ],
                         Actions = [new ActionInvocation { ActionId = "focus-assist", Params = { } }],
@@ -52,8 +52,42 @@ public class SceneStoreTests
             Assert.Equal(TriState.Off, scene.Proxy);
             Assert.Equal("high", scene.PowerPlan);
             Assert.Equal(2, scene.Apps.Count);
+            Assert.Equal(AppLaunchMode.Minimized, scene.Apps[0].LaunchMode);
             Assert.Equal(AppDisposition.EnsureClosed, scene.Apps[1].Disposition);
             Assert.Equal("game", loaded.ActiveSceneId);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Load_removes_legacy_suspended_entries_without_losing_the_scene()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"gs-migrate-{Guid.NewGuid():N}.json");
+        try
+        {
+            File.WriteAllText(path, """
+            {
+              "activeSceneId": "game",
+              "scenes": [{
+                "id": "game", "name": "游戏", "icon": "G",
+                "apps": [
+                  { "match": "legacy.exe", "disposition": "ensureSuspended" },
+                  { "match": "steam.exe", "disposition": "ensureRunning", "path": "C:\\steam.exe" }
+                ],
+                "proxy": "unchanged", "actions": []
+              }]
+            }
+            """);
+
+            var doc = new SceneStore(path).Load();
+
+            var scene = Assert.Single(doc.Scenes);
+            Assert.Equal("game", doc.ActiveSceneId);
+            Assert.Equal("steam.exe", Assert.Single(scene.Apps).Match);
+            Assert.DoesNotContain("ensureSuspended", File.ReadAllText(path), StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
