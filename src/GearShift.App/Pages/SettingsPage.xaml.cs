@@ -25,6 +25,8 @@ public sealed partial class SettingsPage : Page
         NotifyToggle.IsOn = s.NotifyOnSwitch;
         ConfirmPluginToggle.IsOn = s.ConfirmPluginScripts;
         AutoUpdateToggle.IsOn = s.AutoCheckUpdates;
+        AutomationToggle.IsOn = s.EnableAutomation;
+        HotkeyToggle.IsOn = s.EnableHotkeys;
 
         ThemeCombo.SelectedIndex = s.Theme switch { "Light" => 1, "Dark" => 2, _ => 0 };
 
@@ -92,6 +94,8 @@ public sealed partial class SettingsPage : Page
         SettingsService.Current.NotifyOnSwitch = NotifyToggle.IsOn;
         SettingsService.Current.ConfirmPluginScripts = ConfirmPluginToggle.IsOn;
         SettingsService.Current.AutoCheckUpdates = AutoUpdateToggle.IsOn;
+        SettingsService.Current.EnableAutomation = AutomationToggle.IsOn;
+        SettingsService.Current.EnableHotkeys = HotkeyToggle.IsOn;
         SettingsService.Save();
     }
 

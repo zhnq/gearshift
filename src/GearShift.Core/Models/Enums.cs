@@ -30,3 +30,16 @@ public enum TriState
     On,
     Off,
 }
+
+/// <summary>Events and environmental conditions that can activate a scene automatically.</summary>
+public enum SceneTriggerKind
+{
+    ProcessStarted,
+    ProcessStopped,
+    ForegroundProcess,
+    AcPower,
+    BatteryPower,
+    WifiSsid,
+    TimeRange,
+    ExternalMonitor,
+}

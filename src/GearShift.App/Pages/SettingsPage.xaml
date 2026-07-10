@@ -30,6 +30,24 @@
                         </Grid>
                         <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
                         <Grid Padding="16,12" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel Spacing="1">
+                                <TextBlock Text="自动触发场景" />
+                                <TextBlock Text="按程序、前台窗口、电源、Wi-Fi、时间和显示器状态切换（重启后生效）" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="AutomationToggle" Grid.Column="1" OnContent="" OffContent="" Toggled="OnSettingChanged" />
+                        </Grid>
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <Grid Padding="16,12" ColumnSpacing="14">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel Spacing="1">
+                                <TextBlock Text="全局场景快捷键" />
+                                <TextBlock Text="Ctrl+Alt+1 到 Ctrl+Alt+9 对应场景列表前九项（重启后生效）" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}" />
+                            </StackPanel>
+                            <ToggleSwitch x:Name="HotkeyToggle" Grid.Column="1" OnContent="" OffContent="" Toggled="OnSettingChanged" />
+                        </Grid>
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                        <Grid Padding="16,12" ColumnSpacing="14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />

@@ -23,8 +23,42 @@ public sealed record Scene
     /// <summary>Desired power plan (GUID or well-known key). <c>null</c> leaves it alone.</summary>
     public string? PowerPlan { get; init; }
 
+    /// <summary>Optional Windows display topology: internal, clone, extend, or external.</summary>
+    public string? DisplayMode { get; init; }
+
+    /// <summary>Optional Core Audio endpoint id to make the default playback device.</summary>
+    public string? AudioDeviceId { get; init; }
+
     /// <summary>Plugin actions to invoke when entering this scene (from the action library).</summary>
     public IReadOnlyList<ActionInvocation> Actions { get; init; } = [];
+
+    /// <summary>Optional rules that can activate this scene without opening the app.</summary>
+    public IReadOnlyList<SceneTrigger> Triggers { get; init; } = [];
+
+    /// <summary>Window rectangles to restore after the scene's programs are ready.</summary>
+    public IReadOnlyList<WindowLayout> WindowLayouts { get; init; } = [];
+
+    /// <summary>When set, return to the previous scene after all listed primary programs exit.</summary>
+    public IReadOnlyList<string> RestoreWhenStopped { get; init; } = [];
+}
+
+public sealed record SceneTrigger
+{
+    public SceneTriggerKind Kind { get; init; }
+    public string? Value { get; init; }
+    public string? EndValue { get; init; }
+    public bool Enabled { get; init; } = true;
+    public int CooldownSeconds { get; init; } = 30;
+}
+
+public sealed record WindowLayout
+{
+    public required string Match { get; init; }
+    public int Left { get; init; }
+    public int Top { get; init; }
+    public int Width { get; init; }
+    public int Height { get; init; }
+    public bool Maximized { get; init; }
 }
 
 /// <summary>A reference to a library action plus the parameters it is invoked with.</summary>

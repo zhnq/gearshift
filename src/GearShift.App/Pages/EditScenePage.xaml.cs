@@ -20,6 +20,8 @@ public sealed partial class EditScenePage : Page
     private ObservableCollection<AppEntry> LaunchApps { get; } = [];
     private ObservableCollection<AppEntry> CloseApps { get; } = [];
     private ObservableCollection<ActionEntry> SceneActions { get; } = [];
+    private readonly List<SceneTrigger> _triggers = [];
+    private readonly List<WindowLayout> _layouts = [];
 
     public EditScenePage()
     {
@@ -57,6 +59,11 @@ public sealed partial class EditScenePage : Page
             });
         }
 
+        _triggers.AddRange(_scene.Triggers);
+        _layouts.AddRange(_scene.WindowLayouts);
+        RestoreToggle.IsOn = _scene.RestoreWhenStopped.Count > 0;
+        RefreshTriggerSummary();
+
         ProxyCombo.SelectedIndex = _scene.Proxy switch
         {
             TriState.On => 1,
@@ -70,6 +77,11 @@ public sealed partial class EditScenePage : Page
             "saver" => 3,
             _ => 0,
         };
+        DisplayCombo.SelectedIndex = _scene.DisplayMode switch { "extend" => 1, "clone" => 2, "external" => 3, "internal" => 4, _ => 0 };
+        AudioCombo.Items.Clear();
+        AudioCombo.Items.Add(new GearShift.Core.System.AudioEndpoint("", "不改变"));
+        foreach (var endpoint in AppServices.Audio.PlaybackDevices()) AudioCombo.Items.Add(endpoint);
+        AudioCombo.SelectedValue = _scene.AudioDeviceId ?? "";
     }
 
     private void OnBack(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(ScenesPage));
@@ -102,7 +114,7 @@ public sealed partial class EditScenePage : Page
         };
         var search = new TextBox { PlaceholderText = "搜索程序名称", MinWidth = 420 };
         var source = new ComboBox { MinWidth = 140, SelectedIndex = 0 };
-        foreach (var label in new[] { "全部来源", "开始菜单", "桌面", "已安装程序" }) source.Items.Add(label);
+        foreach (var label in new[] { "全部来源", "开始菜单", "桌面", "已安装程序", "Microsoft Store", "Steam 游戏" }) source.Items.Add(label);
 
         void Refresh()
         {
@@ -170,7 +182,10 @@ public sealed partial class EditScenePage : Page
         }
 
         // Match 用目标文件名（如 chrome.exe），供差异引擎与运行中进程比对。
-        var match = Path.GetFileName(targetPath);
+        var match = targetPath.StartsWith("steam:", StringComparison.OrdinalIgnoreCase)
+                    || targetPath.StartsWith("shell:", StringComparison.OrdinalIgnoreCase)
+            ? display + ".app"
+            : Path.GetFileName(targetPath);
         if (LaunchApps.Any(a => a.Match.Equals(match, StringComparison.OrdinalIgnoreCase))) return;
         LaunchApps.Add(new AppEntry(match, AppDisposition.EnsureRunning, targetPath, display));
     }
@@ -189,6 +204,57 @@ public sealed partial class EditScenePage : Page
     {
         if ((sender as Button)?.Tag is ActionEntry entry)
             SceneActions.Remove(entry);
+    }
+
+    private async void OnConfigureTriggers(object sender, RoutedEventArgs e)
+    {
+        var kind = new ComboBox { MinWidth = 280, SelectedIndex = 0 };
+        foreach (var item in new[] { "程序启动", "程序退出", "前台程序", "接通电源", "使用电池", "连接 Wi-Fi", "时间范围", "连接外接显示器" }) kind.Items.Add(item);
+        var value = new TextBox { PlaceholderText = "程序名 / Wi-Fi 名 / 开始时间 HH:mm", MinWidth = 280 };
+        var end = new TextBox { PlaceholderText = "结束时间 HH:mm（仅时间范围）", MinWidth = 280 };
+        var list = new ListView { ItemsSource = _triggers.Select(DescribeTrigger).ToList(), MaxHeight = 180 };
+        var panel = new StackPanel { Spacing = 10, MinWidth = 400 };
+        panel.Children.Add(new TextBlock { Text = "自动触发有 30 秒防抖。程序名称请填写 xxx.exe。" });
+        panel.Children.Add(kind); panel.Children.Add(value); panel.Children.Add(end); panel.Children.Add(list);
+        var dialog = new ContentDialog { Title = "自动触发", Content = panel, PrimaryButtonText = "添加", SecondaryButtonText = "移除所选", CloseButtonText = "完成", XamlRoot = XamlRoot };
+        var choice = await dialog.ShowAsync();
+        if (choice == ContentDialogResult.Primary)
+        {
+            var triggerKind = (SceneTriggerKind)kind.SelectedIndex;
+            var requiresValue = triggerKind is SceneTriggerKind.ProcessStarted or SceneTriggerKind.ProcessStopped or SceneTriggerKind.ForegroundProcess or SceneTriggerKind.WifiSsid or SceneTriggerKind.TimeRange;
+            if (!requiresValue || !string.IsNullOrWhiteSpace(value.Text))
+                _triggers.Add(new SceneTrigger { Kind = triggerKind, Value = value.Text.Trim(), EndValue = end.Text.Trim() });
+            RefreshTriggerSummary();
+        }
+        else if (choice == ContentDialogResult.Secondary && list.SelectedIndex >= 0)
+        {
+            _triggers.RemoveAt(list.SelectedIndex);
+            RefreshTriggerSummary();
+        }
+    }
+
+    private void RefreshTriggerSummary() => TriggerSummary.Text = _triggers.Count == 0 ? "未配置自动触发" : string.Join(" · ", _triggers.Select(DescribeTrigger));
+    private static string DescribeTrigger(SceneTrigger trigger) => trigger.Kind switch
+    {
+        SceneTriggerKind.ProcessStarted => $"启动 {trigger.Value}",
+        SceneTriggerKind.ProcessStopped => $"退出 {trigger.Value}",
+        SceneTriggerKind.ForegroundProcess => $"前台 {trigger.Value}",
+        SceneTriggerKind.AcPower => "接通电源",
+        SceneTriggerKind.BatteryPower => "使用电池",
+        SceneTriggerKind.WifiSsid => $"Wi-Fi {trigger.Value}",
+        SceneTriggerKind.TimeRange => $"{trigger.Value}-{trigger.EndValue}",
+        SceneTriggerKind.ExternalMonitor => "外接显示器",
+        _ => trigger.Kind.ToString(),
+    };
+
+    private async void OnCaptureLayout(object sender, RoutedEventArgs e)
+    {
+        var captured = AppServices.Windows.CaptureVisible();
+        _layouts.Clear();
+        _layouts.AddRange(captured);
+        CaptureLayoutButton.Content = captured.Count == 0 ? "未检测到可记录窗口" : $"已记录 {captured.Count} 个窗口布局";
+        if (captured.Count == 0)
+            await new ContentDialog { Title = "未记录窗口", Content = "请先打开需要记录的程序窗口。", CloseButtonText = "完成", XamlRoot = XamlRoot }.ShowAsync();
     }
 
     private async void OnAddAction(object sender, RoutedEventArgs e)
@@ -297,6 +363,8 @@ public sealed partial class EditScenePage : Page
     {
         var proxy = ProxyCombo.SelectedIndex switch { 1 => TriState.On, 2 => TriState.Off, _ => TriState.Unchanged };
         var power = PowerCombo.SelectedIndex switch { 1 => "high", 2 => "balanced", 3 => "saver", _ => (string?)null };
+        var display = DisplayCombo.SelectedIndex switch { 1 => "extend", 2 => "clone", 3 => "external", 4 => "internal", _ => (string?)null };
+        var audio = AudioCombo.SelectedValue?.ToString();
 
         var updated = _scene with
         {
@@ -309,7 +377,14 @@ public sealed partial class EditScenePage : Page
             ],
             Proxy = proxy,
             PowerPlan = power,
+            DisplayMode = display,
+            AudioDeviceId = string.IsNullOrWhiteSpace(audio) ? null : audio,
             Actions = [.. SceneActions.Select(a => new ActionInvocation { ActionId = a.ActionId, Params = a.Params })],
+            Triggers = [.. _triggers],
+            WindowLayouts = [.. _layouts],
+            RestoreWhenStopped = RestoreToggle.IsOn
+                ? LaunchApps.Select(a => a.Match).ToList()
+                : [],
         };
 
         AppServices.UpsertScene(updated);

@@ -10,8 +10,13 @@ public sealed class AppSettings
     public bool NotifyOnSwitch { get; set; } = true;
     public bool ConfirmPluginScripts { get; set; } = true;
     public bool AutoCheckUpdates { get; set; } = true;
+    public bool EnableAutomation { get; set; } = true;
+    public bool EnableHotkeys { get; set; } = true;
     public string? DefaultSceneId { get; set; }
     public string? PendingElevatedSceneId { get; set; }
+    public string? PendingRestoreSceneId { get; set; }
+    public List<string> PendingRestoreApps { get; set; } = [];
+    public bool PendingRestoreObservedRunning { get; set; }
 
     /// <summary>Action ids the user has disabled in the library. Disabled actions are never run.</summary>
     public List<string> DisabledActions { get; set; } = [];

@@ -80,6 +80,22 @@ public sealed class DiffEngine
             });
         }
 
+        if (!string.IsNullOrWhiteSpace(target.DisplayMode))
+            steps.Add(new SwitchStep { Kind = StepKind.SetDisplayMode, Target = target.DisplayMode, Reason = "显示器布局切换", Value = target.DisplayMode });
+        if (!string.IsNullOrWhiteSpace(target.AudioDeviceId))
+            steps.Add(new SwitchStep { Kind = StepKind.SetAudioDevice, Target = target.AudioDeviceId, Reason = "默认播放设备切换", Value = target.AudioDeviceId });
+
+        if (target.WindowLayouts.Count > 0)
+        {
+            steps.Add(new SwitchStep
+            {
+                Kind = StepKind.RestoreWindowLayout,
+                Target = $"{target.WindowLayouts.Count} 个窗口",
+                Reason = "恢复窗口位置与大小",
+                WindowLayouts = target.WindowLayouts,
+            });
+        }
+
         // Plugin actions always fire on entry; the runner decides whether an action with a
         // read step is actually a no-op. Keeping them here preserves scene order.
         foreach (var action in target.Actions)

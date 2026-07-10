@@ -18,6 +18,11 @@ public interface IProcessController
     CloseOutcome Close(string match);
 }
 
+public interface IWindowLayoutController
+{
+    void Restore(IReadOnlyList<WindowLayout> layouts);
+}
+
 /// <summary>Reads and writes the Windows system proxy.</summary>
 public interface ISystemProxy
 {
@@ -31,6 +36,9 @@ public interface IPowerPlanManager
     string? Active();
     void SetActive(string key);
 }
+
+public interface IDisplayManager { void SetMode(string mode); }
+public interface IAudioDeviceManager { void SetDefaultPlayback(string endpointId); }
 
 /// <summary>Runs a library/plugin action step (e.g. a PowerShell script).</summary>
 public interface IActionRunner

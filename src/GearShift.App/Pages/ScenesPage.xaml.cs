@@ -75,6 +75,36 @@ public sealed partial class ScenesPage : Page
         await ShowResultAsync(scene, result);
     }
 
+    private async void OnPreviewScene(object sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuFlyoutItem)?.Tag is not Scene scene) return;
+        var plan = AppServices.Preview(scene);
+        var content = plan.Count == 0
+            ? "当前系统已符合场景目标。"
+            : string.Join(Environment.NewLine, plan.Select(x => $"• {x.Reason}：{x.Target}"));
+        await new ContentDialog
+        {
+            Title = $"{scene.Name} 的执行预览",
+            Content = new TextBlock { Text = content, TextWrapping = TextWrapping.Wrap },
+            CloseButtonText = "完成",
+            XamlRoot = XamlRoot,
+        }.ShowAsync();
+    }
+
+    private async void OnCreateShortcut(object sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuFlyoutItem)?.Tag is not Scene scene) return;
+        try
+        {
+            var path = DesktopShortcutService.CreateSceneShortcut(scene.Id, scene.Name);
+            await new ContentDialog { Title = "已创建快捷方式", Content = path, CloseButtonText = "完成", XamlRoot = XamlRoot }.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            await new ContentDialog { Title = "无法创建快捷方式", Content = ex.Message, CloseButtonText = "完成", XamlRoot = XamlRoot }.ShowAsync();
+        }
+    }
+
     private async void OnDeleteScene(object sender, RoutedEventArgs e)
     {
         if ((sender as MenuFlyoutItem)?.Tag is not Scene scene) return;
@@ -93,6 +123,23 @@ public sealed partial class ScenesPage : Page
             AppServices.DeleteScene(scene.Id);
             RefreshCards();
         }
+    }
+
+    private async void OnShowHistory(object sender, RoutedEventArgs e)
+    {
+        var records = SceneRunHistory.Load().Take(20).ToList();
+        var text = records.Count == 0
+            ? "还没有执行记录。"
+            : string.Join(Environment.NewLine + Environment.NewLine, records.Select(r =>
+                $"{r.StartedAt:MM-dd HH:mm} · {r.SceneName} · {r.Outcomes.Count} 步 · {r.Outcomes.Sum(x => x.Duration.TotalMilliseconds):0} ms" +
+                Environment.NewLine + string.Join(Environment.NewLine, r.Outcomes.Select(x => $"  {x.Status}  {x.Message}  {x.Duration.TotalMilliseconds:0} ms"))));
+        await new ContentDialog
+        {
+            Title = "最近执行记录",
+            Content = new ScrollViewer { MaxHeight = 420, Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap } },
+            CloseButtonText = "完成",
+            XamlRoot = XamlRoot,
+        }.ShowAsync();
     }
 
     private async Task ShowResultAsync(Scene scene, SwitchResult result)
@@ -122,11 +169,18 @@ public sealed partial class ScenesPage : Page
             Title = $"已切换到 {scene.Name}",
             Content = body.ToString().TrimEnd(),
             PrimaryButtonText = result.FailedCount > 0 && !ElevationHelper.IsElevated() ? "管理员重试" : null,
+            SecondaryButtonText = result.HadTrouble ? "再次执行" : null,
             CloseButtonText = "完成",
             XamlRoot = XamlRoot,
         };
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
-            ElevationHelper.RestartElevated(scene.Id);
+        var choice = await dialog.ShowAsync();
+        if (choice == ContentDialogResult.Primary) ElevationHelper.RestartElevated(scene.Id);
+        if (choice == ContentDialogResult.Secondary)
+        {
+            var retried = await AppServices.SwitchAsync(scene);
+            RefreshCards();
+            await ShowResultAsync(scene, retried);
+        }
     }
 }
 

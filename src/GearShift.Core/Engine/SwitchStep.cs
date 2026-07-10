@@ -8,6 +8,9 @@ public enum StepKind
     CloseProcess,
     SetProxy,
     SetPowerPlan,
+    SetDisplayMode,
+    SetAudioDevice,
+    RestoreWindowLayout,
     RunAction,
 }
 
@@ -37,4 +40,8 @@ public sealed record SwitchStep
 
     /// <summary>Desired power-plan key for <see cref="StepKind.SetPowerPlan"/>.</summary>
     public string? PowerPlan { get; init; }
+
+    public string? Value { get; init; }
+
+    public IReadOnlyList<WindowLayout>? WindowLayouts { get; init; }
 }

@@ -26,6 +26,9 @@ public static class ActionCatalog
         {
             new() { Icon = "🌐", Name = "系统代理", Description = "关闭或开启 Windows 系统代理", Chips = ["内置", "有状态"], Enabled = true },
             new() { Icon = "⚡", Name = "电源计划", Description = "切换 Windows 电源计划（高性能 / 平衡）", Chips = ["内置", "有状态"], Enabled = true },
+            new() { Icon = "🖥️", Name = "显示器布局", Description = "切换扩展、复制、仅内置或仅外接显示器", Chips = ["内置", "Windows"], Enabled = true },
+            new() { Icon = "🔊", Name = "默认播放设备", Description = "按场景切换 Windows 默认播放设备", Chips = ["内置", "Core Audio"], Enabled = true },
+            new() { Icon = "▣", Name = "窗口布局", Description = "记录并恢复程序窗口的位置、大小和最大化状态", Chips = ["内置", "可选"], Enabled = true },
         };
 
         foreach (var manifest in library.All)

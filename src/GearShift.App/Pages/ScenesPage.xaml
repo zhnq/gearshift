@@ -20,6 +20,7 @@
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="10"
                         HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Content="执行记录" Click="OnShowHistory" />
                 <Button Click="OnSnapshotScene" ToolTipService.ToolTip="抓取当前打开的程序，创建为新场景">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <FontIcon Glyph="&#xE722;" FontSize="14" />
@@ -53,6 +54,8 @@
                         <Grid.ContextFlyout>
                             <MenuFlyout>
                                 <MenuFlyoutItem Text="启用 / 再次启用" Click="OnEnableScene" Tag="{x:Bind Scene}" />
+                                <MenuFlyoutItem Text="预览差异" Click="OnPreviewScene" Tag="{x:Bind Scene}" />
+                                <MenuFlyoutItem Text="创建桌面快捷方式" Click="OnCreateShortcut" Tag="{x:Bind Scene}" />
                                 <MenuFlyoutSeparator />
                                 <MenuFlyoutItem Text="编辑" Click="OnEditScene" Tag="{x:Bind Scene}" />
                                 <MenuFlyoutItem Text="删除" Click="OnDeleteScene" Tag="{x:Bind Scene}" />
