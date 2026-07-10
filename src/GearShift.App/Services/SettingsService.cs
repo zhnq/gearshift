@@ -11,6 +11,7 @@ public sealed class AppSettings
     public bool ConfirmPluginScripts { get; set; } = true;
     public bool AutoCheckUpdates { get; set; } = true;
     public string? DefaultSceneId { get; set; }
+    public string? PendingElevatedSceneId { get; set; }
 
     /// <summary>Action ids the user has disabled in the library. Disabled actions are never run.</summary>
     public List<string> DisabledActions { get; set; } = [];

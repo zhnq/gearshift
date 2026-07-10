@@ -38,7 +38,7 @@ public sealed partial class MainWindow : Window
         if (SettingsService.Current.StartMinimized)
             AppWindow.Hide();
 
-        ApplyDefaultScene();
+        ApplyStartupScene();
         _ = CheckForUpdatesAsync();
     }
 
@@ -91,10 +91,16 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void ApplyDefaultScene()
+    private async void ApplyStartupScene()
     {
-        var id = SettingsService.Current.DefaultSceneId;
+        var id = SettingsService.Current.PendingElevatedSceneId ?? SettingsService.Current.DefaultSceneId;
         if (string.IsNullOrEmpty(id)) return;
+
+        if (SettingsService.Current.PendingElevatedSceneId is not null)
+        {
+            SettingsService.Current.PendingElevatedSceneId = null;
+            SettingsService.Save();
+        }
 
         var scene = AppServices.Scenes.FirstOrDefault(s => s.Id == id);
         if (scene is null) return;
