@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.IO.Compression;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -32,7 +31,8 @@ public static class UpdateService
         if (!Version.TryParse(tag.TrimStart('v', 'V').Split('-')[0], out var latest) || latest <= CurrentVersion)
             return null;
         var asset = root.GetProperty("assets").EnumerateArray().FirstOrDefault(x =>
-            (x.GetProperty("name").GetString() ?? "").EndsWith("-win-x64.zip", StringComparison.OrdinalIgnoreCase));
+            (x.GetProperty("name").GetString() ?? "").StartsWith("GearShiftSetup-", StringComparison.OrdinalIgnoreCase)
+            && (x.GetProperty("name").GetString() ?? "").EndsWith("-win-x64.exe", StringComparison.OrdinalIgnoreCase));
         if (asset.ValueKind == JsonValueKind.Undefined) return null;
         var digest = asset.TryGetProperty("digest", out var digestElement)
             ? digestElement.GetString() ?? ""
@@ -52,12 +52,12 @@ public static class UpdateService
     {
         var staging = Path.Combine(Path.GetTempPath(), "GearShift-update-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(staging);
-        var zip = Path.Combine(staging, "update.zip");
+        var installer = Path.Combine(staging, "GearShiftSetup.exe");
         await using (var source = await Client.GetStreamAsync(update.DownloadUrl, ct))
-        await using (var target = File.Create(zip))
+        await using (var target = File.Create(installer))
             await source.CopyToAsync(target, ct);
 
-        await using (var downloaded = File.OpenRead(zip))
+        await using (var downloaded = File.OpenRead(installer))
         {
             var actual = Convert.ToHexString(await SHA256.HashDataAsync(downloaded, ct));
             if (!string.Equals(actual, update.Sha256, StringComparison.OrdinalIgnoreCase))
@@ -67,8 +67,6 @@ public static class UpdateService
             }
         }
 
-        var payload = Path.Combine(staging, "payload");
-        ZipFile.ExtractToDirectory(zip, payload, overwriteFiles: true);
         var script = Path.Combine(staging, "apply-update.ps1");
         await File.WriteAllTextAsync(script, UpdateScript, ct);
         var exe = Environment.ProcessPath ?? throw new InvalidOperationException("无法定位 GearShift.exe");
@@ -80,8 +78,7 @@ public static class UpdateService
             WindowStyle = ProcessWindowStyle.Hidden,
         };
         foreach (var arg in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
-                     "-ProcessId", Environment.ProcessId.ToString(), "-Source", payload,
-                     "-Target", AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar), "-Exe", exe })
+                     "-ProcessId", Environment.ProcessId.ToString(), "-Installer", installer, "-Exe", exe })
             psi.ArgumentList.Add(arg);
         _ = Process.Start(psi) ?? throw new InvalidOperationException("无法启动更新器");
     }
@@ -95,12 +92,19 @@ public static class UpdateService
     }
 
     private const string UpdateScript = """
-param([int]$ProcessId, [string]$Source, [string]$Target, [string]$Exe)
+param([int]$ProcessId, [string]$Installer, [string]$Exe)
 $ErrorActionPreference = 'Stop'
 try { Wait-Process -Id $ProcessId -Timeout 45 -ErrorAction SilentlyContinue } catch {}
 Start-Sleep -Milliseconds 500
-Copy-Item -Path (Join-Path $Source '*') -Destination $Target -Recurse -Force
-Start-Process -FilePath $Exe
-Remove-Item -LiteralPath (Split-Path $Source -Parent) -Recurse -Force -ErrorAction SilentlyContinue
+& $Installer /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+if ($LASTEXITCODE -ne 0) { throw "安装器失败 ($LASTEXITCODE)" }
+$installedExe = Join-Path $env:LOCALAPPDATA 'Programs\GearShift\GearShift.exe'
+if (Test-Path -LiteralPath $installedExe) {
+    Start-Process -FilePath $installedExe
+}
+else {
+    Start-Process -FilePath $Exe
+}
+Remove-Item -LiteralPath (Split-Path $Installer -Parent) -Recurse -Force -ErrorAction SilentlyContinue
 """;
 }
