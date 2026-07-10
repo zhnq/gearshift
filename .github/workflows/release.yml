@@ -33,7 +33,7 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $v = if ($tag -match '^v') { $tag.TrimStart('v') } else { '0.0.0-dev' }
           "version=$v"                        | Out-File $env:GITHUB_OUTPUT -Append
-          "asset=GearShift-$v-win-x64"        | Out-File $env:GITHUB_OUTPUT -Append
+          "asset=GearShiftSetup-$v-win-x64"   | Out-File $env:GITHUB_OUTPUT -Append
 
       - name: Publish (framework-dependent, x64)
         run: >
@@ -74,21 +74,35 @@ jobs:
           }
           Remove-Item -LiteralPath $pfx -Force
 
-      - name: Zip
-        run: Compress-Archive -Path publish/* -DestinationPath "${{ steps.ver.outputs.asset }}.zip" -Force
+      - name: Install Inno Setup
+        shell: powershell
+        run: |
+          $paths = @(
+            'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+            (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe')
+          )
+          if (-not ($paths | Where-Object { Test-Path $_ })) {
+            winget install --id JRSoftware.InnoSetup -e --silent --accept-package-agreements --accept-source-agreements
+            if ($LASTEXITCODE -ne 0) { throw "Inno Setup 安装失败 ($LASTEXITCODE)" }
+          }
+
+      - name: Build Installer
+        run: >
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-installer.ps1
+          -Version ${{ steps.ver.outputs.version }} -PublishDir publish -OutputDir release
 
       - name: Write checksum
         run: |
-          $file = "${{ steps.ver.outputs.asset }}.zip"
+          $file = "release\${{ steps.ver.outputs.asset }}.exe"
           $hash = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  $file" | Set-Content SHA256SUMS.txt -Encoding ascii
+          "$hash  $(Split-Path $file -Leaf)" | Set-Content SHA256SUMS.txt -Encoding ascii
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.ver.outputs.asset }}
           path: |
-            ${{ steps.ver.outputs.asset }}.zip
+            release\${{ steps.ver.outputs.asset }}.exe
             SHA256SUMS.txt
 
       # 仅当由 tag 触发时才创建 Release
@@ -98,7 +112,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >
           gh release create "${{ github.ref_name }}"
-          "${{ steps.ver.outputs.asset }}.zip"
+          "release\${{ steps.ver.outputs.asset }}.exe"
           "SHA256SUMS.txt"
           --title "GearShift ${{ github.ref_name }}"
           --generate-notes
