@@ -11,7 +11,7 @@ public enum StepStatus
 }
 
 /// <summary>Outcome of executing one <see cref="SwitchStep"/> — feeds the switch-result UI.</summary>
-public sealed record StepOutcome(SwitchStep Step, StepStatus Status, string Message);
+public sealed record StepOutcome(SwitchStep Step, StepStatus Status, string Message, TimeSpan Duration = default);
 
 /// <summary>Aggregate result of applying a scene.</summary>
 public sealed record SwitchResult(Scene Scene, IReadOnlyList<StepOutcome> Outcomes)
@@ -23,4 +23,5 @@ public sealed record SwitchResult(Scene Scene, IReadOnlyList<StepOutcome> Outcom
 
     /// <summary>A scene whose target was already met produces no steps.</summary>
     public bool WasNoOp => Outcomes.Count == 0;
+    public TimeSpan TotalDuration => TimeSpan.FromTicks(Outcomes.Sum(o => o.Duration.Ticks));
 }

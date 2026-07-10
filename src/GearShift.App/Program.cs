@@ -2,6 +2,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
 using WinRT;
+using GearShift.App.Services;
 
 namespace GearShift.App;
 
@@ -15,10 +16,12 @@ public static class Program
     private static void Main(string[] args)
     {
         ComWrappersSupport.InitializeComWrappers();
+        var requestedSceneId = TryGetSceneId(args);
 
         var mainInstance = AppInstance.FindOrRegisterForKey("GearShift-SingleInstance");
         if (!mainInstance.IsCurrent)
         {
+            if (!string.IsNullOrWhiteSpace(requestedSceneId)) SceneActivationRequest.Write(requestedSceneId);
             var activation = AppInstance.GetCurrent().GetActivatedEventArgs();
             mainInstance.RedirectActivationToAsync(activation).AsTask().GetAwaiter().GetResult();
             return;
@@ -32,6 +35,16 @@ public static class Program
             SynchronizationContext.SetSynchronizationContext(context);
             new App();
         });
+    }
+
+    public static string? InitialSceneId { get; private set; }
+
+    private static string? TryGetSceneId(string[] args)
+    {
+        var index = Array.FindIndex(args, x => string.Equals(x, "--scene", StringComparison.OrdinalIgnoreCase));
+        var id = index >= 0 && index + 1 < args.Length ? args[index + 1].Trim() : null;
+        if (!string.IsNullOrWhiteSpace(id)) InitialSceneId = id;
+        return id;
     }
 
     private static void OnRedirected(object? sender, AppActivationArguments args)

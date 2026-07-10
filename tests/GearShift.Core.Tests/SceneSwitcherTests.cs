@@ -38,6 +38,10 @@ public class SceneSwitcherTests
         public void SetActive(string key) => Current = key;
     }
 
+    private sealed class FakeDisplay : IDisplayManager { public string? Mode; public void SetMode(string mode) => Mode = mode; }
+    private sealed class FakeAudio : IAudioDeviceManager { public string? Endpoint; public void SetDefaultPlayback(string endpointId) => Endpoint = endpointId; }
+    private sealed class FakeWindows : IWindowLayoutController { public IReadOnlyList<WindowLayout>? Layouts; public void Restore(IReadOnlyList<WindowLayout> layouts) => Layouts = layouts; }
+
     [Fact]
     public async Task Switch_starts_closes_and_sets_proxy_reporting_each_outcome()
     {
@@ -88,6 +92,27 @@ public class SceneSwitcherTests
 
         Assert.True(result.HadTrouble);
         Assert.Equal(1, result.WarningCount);
+    }
+
+    [Fact]
+    public async Task Switch_applies_display_audio_and_window_layout_actions()
+    {
+        var display = new FakeDisplay();
+        var audio = new FakeAudio();
+        var windows = new FakeWindows();
+        var switcher = new SceneSwitcher(new DiffEngine(new SafetyList()), () => new FakeProbe(), new FakeProcesses(), new FakeProxy(), new FakePower(), new NoopActions(), windows, display, audio);
+        var scene = new Scene
+        {
+            Id = "x", Name = "x", DisplayMode = "extend", AudioDeviceId = "audio-id",
+            WindowLayouts = [new WindowLayout { Match = "app.exe", Width = 800, Height = 600 }],
+        };
+
+        var result = await switcher.SwitchAsync(scene);
+
+        Assert.Equal("extend", display.Mode);
+        Assert.Equal("audio-id", audio.Endpoint);
+        Assert.Single(windows.Layouts!);
+        Assert.All(result.Outcomes, x => Assert.True(x.Duration >= TimeSpan.Zero));
     }
 
     private sealed class NoopActions : IActionRunner

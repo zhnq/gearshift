@@ -37,6 +37,11 @@ public class SceneStoreTests
                             new AppRef { Match = "steam.exe", Disposition = AppDisposition.EnsureRunning, Path = @"C:\steam.exe", LaunchMode = AppLaunchMode.Minimized },
                             new AppRef { Match = "outlook.exe", Disposition = AppDisposition.EnsureClosed },
                         ],
+                        DisplayMode = "extend",
+                        AudioDeviceId = "endpoint-id",
+                        Triggers = [new SceneTrigger { Kind = SceneTriggerKind.ProcessStarted, Value = "steam.exe" }],
+                        WindowLayouts = [new WindowLayout { Match = "steam.exe", Left = 10, Top = 20, Width = 800, Height = 600 }],
+                        RestoreWhenStopped = ["steam.exe"],
                         Actions = [new ActionInvocation { ActionId = "focus-assist", Params = { } }],
                     },
                 ],
@@ -54,6 +59,11 @@ public class SceneStoreTests
             Assert.Equal(2, scene.Apps.Count);
             Assert.Equal(AppLaunchMode.Minimized, scene.Apps[0].LaunchMode);
             Assert.Equal(AppDisposition.EnsureClosed, scene.Apps[1].Disposition);
+            Assert.Equal("extend", scene.DisplayMode);
+            Assert.Equal("endpoint-id", scene.AudioDeviceId);
+            Assert.Single(scene.Triggers);
+            Assert.Single(scene.WindowLayouts);
+            Assert.Single(scene.RestoreWhenStopped);
             Assert.Equal("game", loaded.ActiveSceneId);
         }
         finally

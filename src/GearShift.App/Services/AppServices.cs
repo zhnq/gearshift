@@ -22,6 +22,8 @@ public static class AppServices
     public static ProcessManager Processes { get; private set; } = null!;
     public static ActionLibrary Actions { get; private set; } = null!;
     public static string ActionsRoot { get; private set; } = "";
+    public static WindowLayoutManager Windows { get; private set; } = null!;
+    public static AudioDeviceManager Audio { get; private set; } = null!;
 
     public static void Initialize()
     {
@@ -40,8 +42,11 @@ public static class AppServices
         ActionsRoot = Path.Combine(baseDir, "actions");
         ExampleActions.SeedIfEmpty(ActionsRoot);
         Actions = new ActionLibrary(ActionsRoot);
+        _ = ProgramCatalog.WarmAsync();
 
         Processes = new ProcessManager();
+        Windows = new WindowLayoutManager();
+        Audio = new AudioDeviceManager();
         var proxy = new SystemProxy();
         var power = new PowerPlanManager();
         var engine = new DiffEngine(new SafetyList(_document.ExtraProtectedProcesses));
@@ -50,16 +55,29 @@ public static class AppServices
             engine,
             () => new WindowsSystemProbe(Processes, proxy, power),
             Processes, proxy, power,
-            new ScriptActionRunner(Actions, ActionState.IsEnabled));
+            new ScriptActionRunner(Actions, ActionState.IsEnabled), Windows, new DisplayManager(), Audio);
     }
 
-    public static async Task<SwitchResult> SwitchAsync(Scene scene)
+    public static async Task<SwitchResult> SwitchAsync(Scene scene, IProgress<StepOutcome>? progress = null)
     {
-        var result = await Switcher.SwitchAsync(scene);
+        var previous = ActiveSceneId;
+        var result = await Switcher.SwitchAsync(scene, progress);
         ActiveSceneId = scene.Id;
         Persist();
+        SceneRunHistory.Append(new SceneRunRecord(DateTimeOffset.Now, scene.Id, scene.Name, result.Outcomes));
+        if (scene.RestoreWhenStopped.Count > 0 && !string.IsNullOrWhiteSpace(previous) && previous != scene.Id)
+        {
+            SettingsService.Current.PendingRestoreSceneId = previous;
+            SettingsService.Current.PendingRestoreApps = scene.RestoreWhenStopped.ToList();
+            SettingsService.Current.PendingRestoreObservedRunning = false;
+            SettingsService.Save();
+        }
         return result;
     }
+
+    public static IReadOnlyList<SwitchStep> Preview(Scene scene)
+        => new DiffEngine(new SafetyList(_document.ExtraProtectedProcesses))
+            .BuildPlan(scene, new WindowsSystemProbe(Processes, new SystemProxy(), new PowerPlanManager()));
 
     public static void UpsertScene(Scene scene)
     {

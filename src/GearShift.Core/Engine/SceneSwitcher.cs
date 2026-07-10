@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using GearShift.Core.Models;
 
 namespace GearShift.Core.Engine;
@@ -16,6 +17,9 @@ public sealed class SceneSwitcher
     private readonly ISystemProxy _proxy;
     private readonly IPowerPlanManager _power;
     private readonly IActionRunner _actions;
+    private readonly IWindowLayoutController _windows;
+    private readonly IDisplayManager _display;
+    private readonly IAudioDeviceManager _audio;
 
     public SceneSwitcher(
         DiffEngine engine,
@@ -23,7 +27,10 @@ public sealed class SceneSwitcher
         IProcessController processes,
         ISystemProxy proxy,
         IPowerPlanManager power,
-        IActionRunner actions)
+        IActionRunner actions,
+        IWindowLayoutController? windows = null,
+        IDisplayManager? display = null,
+        IAudioDeviceManager? audio = null)
     {
         _engine = engine;
         _probeFactory = probeFactory;
@@ -31,17 +38,34 @@ public sealed class SceneSwitcher
         _proxy = proxy;
         _power = power;
         _actions = actions;
+        _windows = windows ?? new NullWindowLayoutController();
+        _display = display ?? new NullDisplayManager();
+        _audio = audio ?? new NullAudioDeviceManager();
     }
 
-    public async Task<SwitchResult> SwitchAsync(Scene scene, CancellationToken ct = default)
+    public async Task<SwitchResult> SwitchAsync(Scene scene, IProgress<StepOutcome>? progress = null, CancellationToken ct = default)
     {
         var plan = _engine.BuildPlan(scene, _probeFactory());
         var outcomes = new List<StepOutcome>(plan.Count);
 
-        foreach (var step in plan)
+        var processSteps = plan.Where(s => s.Kind is StepKind.StartProcess or StepKind.CloseProcess).ToList();
+        var otherSteps = plan.Except(processSteps).ToList();
+        using var limiter = new SemaphoreSlim(3);
+        var processOutcomes = await Task.WhenAll(processSteps.Select(async step =>
+        {
+            await limiter.WaitAsync(ct);
+            try { return await ExecuteAsync(step, ct); }
+            finally { limiter.Release(); }
+        }));
+        outcomes.AddRange(processOutcomes);
+        foreach (var outcome in processOutcomes) progress?.Report(outcome);
+
+        foreach (var step in otherSteps)
         {
             ct.ThrowIfCancellationRequested();
-            outcomes.Add(await ExecuteAsync(step, ct));
+            var outcome = await ExecuteAsync(step, ct);
+            outcomes.Add(outcome);
+            progress?.Report(outcome);
         }
 
         return new SwitchResult(scene, outcomes);
@@ -51,34 +75,48 @@ public sealed class SceneSwitcher
     {
         try
         {
+            var started = Stopwatch.GetTimestamp();
+            StepOutcome Timed(StepOutcome outcome) => outcome with { Duration = Stopwatch.GetElapsedTime(started) };
             switch (step.Kind)
             {
                 case StepKind.StartProcess:
                     _processes.Start(step.App!);
-                    return Ok(step, $"已启动 {step.Target}");
+                    return Timed(Ok(step, $"已启动 {step.Target}"));
 
                 case StepKind.CloseProcess:
-                    return _processes.Close(step.App!.Match) switch
+                    return Timed((await Task.Run(() => _processes.Close(step.App!.Match), ct).WaitAsync(TimeSpan.FromSeconds(8), ct)) switch
                     {
                         CloseOutcome.ClosedGracefully => Ok(step, $"已关闭 {step.Target}"),
                         CloseOutcome.ForceKilled => Warn(step, $"{step.Target} 未响应，已强制关闭"),
                         CloseOutcome.NotRunning => new StepOutcome(step, StepStatus.Skipped, $"{step.Target} 已不在运行"),
                         _ => Fail(step, $"无法关闭 {step.Target}"),
-                    };
+                    });
 
                 case StepKind.SetProxy:
                     _proxy.SetEnabled(step.ProxyOn);
-                    return Ok(step, step.ProxyOn ? "系统代理已开启" : "系统代理已关闭");
+                    return Timed(Ok(step, step.ProxyOn ? "系统代理已开启" : "系统代理已关闭"));
 
                 case StepKind.SetPowerPlan:
                     _power.SetActive(step.PowerPlan!);
-                    return Ok(step, $"电源计划已切换为 {step.Target}");
+                    return Timed(Ok(step, $"电源计划已切换为 {step.Target}"));
+
+                case StepKind.SetDisplayMode:
+                    _display.SetMode(step.Value!);
+                    return Timed(Ok(step, $"显示器已切换为 {step.Target}"));
+
+                case StepKind.SetAudioDevice:
+                    _audio.SetDefaultPlayback(step.Value!);
+                    return Timed(Ok(step, "默认播放设备已切换"));
+
+                case StepKind.RestoreWindowLayout:
+                    _windows.Restore(step.WindowLayouts ?? []);
+                    return Timed(Ok(step, $"已恢复 {step.Target}"));
 
                 case StepKind.RunAction:
-                    return await _actions.RunAsync(step, ct);
+                    return Timed(await _actions.RunAsync(step, ct));
 
                 default:
-                    return Fail(step, "未知步骤");
+                    return Timed(Fail(step, "未知步骤"));
             }
         }
         catch (OperationCanceledException)
@@ -87,7 +125,7 @@ public sealed class SceneSwitcher
         }
         catch (Exception ex)
         {
-            return Fail(step, ex.Message);
+            return Fail(step, ex is TimeoutException ? $"{step.Target} 执行超时" : ex.Message);
         }
     }
 
@@ -95,3 +133,10 @@ public sealed class SceneSwitcher
     private static StepOutcome Warn(SwitchStep s, string m) => new(s, StepStatus.Warning, m);
     private static StepOutcome Fail(SwitchStep s, string m) => new(s, StepStatus.Failed, m);
 }
+
+internal sealed class NullWindowLayoutController : IWindowLayoutController
+{
+    public void Restore(IReadOnlyList<WindowLayout> layouts) { }
+}
+internal sealed class NullDisplayManager : IDisplayManager { public void SetMode(string mode) { } }
+internal sealed class NullAudioDeviceManager : IAudioDeviceManager { public void SetDefaultPlayback(string endpointId) { } }

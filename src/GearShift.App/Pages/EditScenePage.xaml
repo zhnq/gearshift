@@ -152,6 +152,35 @@
                             </ComboBox>
                         </Grid>
 
+                        <Grid>
+                            <TextBlock Text="显示器布局" VerticalAlignment="Center" />
+                            <ComboBox x:Name="DisplayCombo" HorizontalAlignment="Right" MinWidth="130">
+                                <ComboBoxItem Content="不改变" />
+                                <ComboBoxItem Content="扩展" />
+                                <ComboBoxItem Content="复制" />
+                                <ComboBoxItem Content="仅外接" />
+                                <ComboBoxItem Content="仅内置" />
+                            </ComboBox>
+                        </Grid>
+
+                        <Grid>
+                            <TextBlock Text="默认播放设备" VerticalAlignment="Center" />
+                            <ComboBox x:Name="AudioCombo" HorizontalAlignment="Right" MinWidth="130"
+                                      DisplayMemberPath="Name" SelectedValuePath="Id" />
+                        </Grid>
+
+                        <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="自动化" FontWeight="SemiBold" FontSize="13" />
+                            <TextBlock x:Name="TriggerSummary" Text="未配置自动触发" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" />
+                            <Button Content="配置自动触发" Click="OnConfigureTriggers" />
+                            <ToggleSwitch x:Name="RestoreToggle" Header="临时场景" OffContent="" OnContent=""
+                                          ToolTipService.ToolTip="相关启动程序全部退出后，自动恢复此前场景" />
+                            <Button x:Name="CaptureLayoutButton" Content="记录当前窗口布局" Click="OnCaptureLayout" />
+                        </StackPanel>
+
                         <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
                         <StackPanel Spacing="8">

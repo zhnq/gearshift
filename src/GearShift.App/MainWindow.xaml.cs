@@ -7,12 +7,15 @@ using GearShift.App.Pages;
 using GearShift.App.Services;
 using GearShift.Core.Models;
 using Windows.Graphics;
+using WinRT.Interop;
 
 namespace GearShift.App;
 
 public sealed partial class MainWindow : Window
 {
     private bool _exiting;
+    private SceneAutomationService? _automation;
+    private SceneHotkeyService? _hotkeys;
 
     public MainWindow()
     {
@@ -39,6 +42,13 @@ public sealed partial class MainWindow : Window
             AppWindow.Hide();
 
         ApplyStartupScene();
+        if (SettingsService.Current.EnableAutomation)
+        {
+            _automation = new SceneAutomationService(ActivateAutomatedSceneAsync);
+            _automation.Start();
+        }
+        if (SettingsService.Current.EnableHotkeys)
+            try { _hotkeys = new SceneHotkeyService(WindowNative.GetWindowHandle(this), DispatcherQueue, ActivateHotkey); } catch { }
         _ = CheckForUpdatesAsync();
     }
 
@@ -93,7 +103,7 @@ public sealed partial class MainWindow : Window
 
     private async void ApplyStartupScene()
     {
-        var id = SettingsService.Current.PendingElevatedSceneId ?? SettingsService.Current.DefaultSceneId;
+        var id = Program.InitialSceneId ?? SettingsService.Current.PendingElevatedSceneId ?? SettingsService.Current.DefaultSceneId;
         if (string.IsNullOrEmpty(id)) return;
 
         if (SettingsService.Current.PendingElevatedSceneId is not null)
@@ -108,6 +118,23 @@ public sealed partial class MainWindow : Window
         await AppServices.SwitchAsync(scene);
         BuildTrayMenu();
         UpdateTrayTooltip();
+    }
+
+    private void ActivateHotkey(int index)
+    {
+        if (index >= 0 && index < AppServices.Scenes.Count) _ = ActivateAutomatedSceneAsync(AppServices.Scenes[index]);
+    }
+
+    private async Task ActivateAutomatedSceneAsync(Scene scene)
+    {
+        var result = await AppServices.SwitchAsync(scene);
+        BuildTrayMenu();
+        UpdateTrayTooltip();
+        if (SettingsService.Current.NotifyOnSwitch)
+        {
+            var summary = result.WasNoOp ? "已处于目标状态" : $"{result.OkCount} 项完成" + (result.HadTrouble ? $" · {result.WarningCount + result.FailedCount} 项提示" : "");
+            try { Tray.ShowNotification($"已切换到 {scene.Name}", summary, NotificationIcon.Info); } catch { }
+        }
     }
 
     private void OnWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -171,6 +198,8 @@ public sealed partial class MainWindow : Window
         exit.Click += (_, _) =>
         {
             _exiting = true;
+            _automation?.Dispose();
+            _hotkeys?.Dispose();
             Tray.Dispose();
             Application.Current.Exit();
         };

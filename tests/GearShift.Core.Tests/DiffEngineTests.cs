@@ -106,4 +106,18 @@ public class DiffEngineTests
         Assert.DoesNotContain(Engine().BuildPlan(GameScene(power: "HIGH"), same), s => s.Kind == StepKind.SetPowerPlan);
         Assert.Contains(Engine().BuildPlan(GameScene(power: "HIGH"), diff), s => s.Kind == StepKind.SetPowerPlan);
     }
+
+    [Fact]
+    public void Adds_display_audio_and_window_steps_when_scene_configures_them()
+    {
+        var scene = new Scene
+        {
+            Id = "x", Name = "x", DisplayMode = "extend", AudioDeviceId = "endpoint",
+            WindowLayouts = [new WindowLayout { Match = "app.exe", Width = 800, Height = 600 }],
+        };
+        var plan = Engine().BuildPlan(scene, new FakeProbe());
+        Assert.Contains(plan, x => x.Kind == StepKind.SetDisplayMode);
+        Assert.Contains(plan, x => x.Kind == StepKind.SetAudioDevice);
+        Assert.Contains(plan, x => x.Kind == StepKind.RestoreWindowLayout);
+    }
 }
